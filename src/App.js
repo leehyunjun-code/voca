@@ -581,6 +581,15 @@ const LandingPage = ({ setView, user, setUserData }) => {
           </Button>
         </form>
       </div>
+      
+      <DisclaimerModal 
+        isOpen={showDisclaimer}
+        onClose={() => setShowDisclaimer(false)}
+        onAgree={() => {
+          setAgreedToTerms(true);
+          setShowDisclaimer(false);
+        }}
+      />
     </div>
   );
 };
