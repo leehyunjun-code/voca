@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { Users, Trophy, Activity, Settings } from 'lucide-react';
 
@@ -32,17 +32,42 @@ const Badge = ({ children, color = 'blue' }) => {
 
 export default function AdminPage() {
   const [password, setPassword] = useState('');
-  const [authenticated, setAuthenticated] = useState(false);
+  const [authenticated, setAuthenticated] = useState(() => {
+    const saved = localStorage.getItem('admin_auth');
+    if (saved) {
+      const { timestamp } = JSON.parse(saved);
+      const now = Date.now();
+      const hoursPassed = (now - timestamp) / (1000 * 60 * 60);
+      if (hoursPassed < 24) {
+        return true;
+      } else {
+        localStorage.removeItem('admin_auth');
+      }
+    }
+    return false;
+  });
   const [logs, setLogs] = useState([]);
   const [stats, setStats] = useState({ totalUsers: 0, totalPoints: 0, totalActivities: 0, userList: [] });
+  const [selectedUser, setSelectedUser] = useState(null);
+
+  useEffect(() => {
+    if (authenticated) {
+      fetchData();
+    }
+  }, [authenticated]);
 
   const handleAuth = () => {
     if (password === ADMIN_PWD) {
+      localStorage.setItem('admin_auth', JSON.stringify({ timestamp: Date.now() }));
       setAuthenticated(true);
-      fetchData();
     } else {
       alert("Incorrect password");
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('admin_auth');
+    setAuthenticated(false);
   };
 
   const fetchData = async () => {
@@ -57,7 +82,6 @@ export default function AdminPage() {
         .from('users')
         .select('*');
 
-      // 사용자별 통계 계산
       const userStats = {};
       usersData?.forEach(user => {
         userStats[user.id] = {
@@ -119,12 +143,20 @@ export default function AdminPage() {
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold">Admin Dashboard</h2>
-          <button 
-            onClick={() => window.location.href = '/'} 
-            className="text-sm text-gray-500 hover:text-indigo-600"
-          >
-            ← Back to Main
-          </button>
+          <div className="flex gap-4">
+            <button 
+              onClick={handleLogout} 
+              className="text-sm text-red-500 hover:text-red-600 font-medium"
+            >
+              Logout
+            </button>
+            <button 
+              onClick={() => window.location.href = '/'} 
+              className="text-sm text-gray-500 hover:text-indigo-600"
+            >
+              ← Back to Main
+            </button>
+          </div>
         </div>
         
         {stats && (
@@ -159,8 +191,70 @@ export default function AdminPage() {
           </div>
         )}
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card>
+            <h3 className="font-bold text-lg mb-4">Module Performance Analysis</h3>
+            <div className="space-y-3">
+              {['Vocabulary', 'Grammar', 'Writing', 'Reading'].map(module => {
+                const moduleLogs = logs.filter(log => log.activity_type === module);
+                const avgScore = moduleLogs.length > 0 
+                  ? Math.round(moduleLogs.reduce((sum, log) => sum + (log.score || 0), 0) / moduleLogs.length)
+                  : 0;
+                const totalAttempts = moduleLogs.length;
+                
+                return (
+                  <div key={module} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <div className="font-medium">{module}</div>
+                      <div className="text-xs text-gray-500">{totalAttempts} attempts</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-indigo-600">{avgScore}</div>
+                      <div className="text-xs text-gray-500">avg score</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
+          <Card>
+            <h3 className="font-bold text-lg mb-4">Student Performance Overview</h3>
+            <div className="space-y-3">
+              {stats.userList?.slice(0, 5).map(user => {
+                const avgScore = user.activityCount > 0 
+                  ? Math.round(user.totalScore / user.activityCount)
+                  : 0;
+                
+                let performance = 'Needs Improvement';
+                let color = 'text-red-600';
+                if (avgScore >= 80) {
+                  performance = 'Excellent';
+                  color = 'text-green-600';
+                } else if (avgScore >= 60) {
+                  performance = 'Good';
+                  color = 'text-blue-600';
+                }
+                
+                return (
+                  <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <div className="font-medium">{user.nickname}</div>
+                      <div className="text-xs text-gray-500">Grade {user.grade}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-sm font-bold ${color}`}>{performance}</div>
+                      <div className="text-xs text-gray-500">{avgScore} avg</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+
         <Card>
-          <h3 className="font-bold text-lg mb-4">User Statistics</h3>
+          <h3 className="font-bold text-lg mb-4">User Statistics (Click for Details)</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50">
@@ -176,7 +270,11 @@ export default function AdminPage() {
               </thead>
               <tbody>
                 {stats.userList?.map((user) => (
-                  <tr key={user.id} className="border-t">
+                  <tr 
+                    key={user.id} 
+                    className="border-t hover:bg-indigo-50 cursor-pointer transition-colors"
+                    onClick={() => setSelectedUser(user)}
+                  >
                     <td className="p-2 font-medium">{user.nickname || 'N/A'}</td>
                     <td className="p-2 text-xs">{user.email || 'N/A'}</td>
                     <td className="p-2">{user.grade || 'N/A'}</td>
@@ -202,7 +300,6 @@ export default function AdminPage() {
                   <th className="p-2 text-left">Details</th>
                   <th className="p-2 text-left">Score</th>
                   <th className="p-2 text-left">Duration</th>
-                  <th className="p-2 text-left">Time</th>
                 </tr>
               </thead>
               <tbody>
@@ -215,7 +312,6 @@ export default function AdminPage() {
                       <td className="p-2">{log.details?.description || 'N/A'}</td>
                       <td className="p-2 font-bold text-indigo-600">{log.score}</td>
                       <td className="p-2">{Math.round(log.duration_seconds)}s</td>
-                      <td className="p-2 text-gray-500">{new Date(log.created_at).toLocaleString()}</td>
                     </tr>
                   );
                 })}
@@ -224,6 +320,137 @@ export default function AdminPage() {
           </div>
         </Card>
       </div>
+
+      {/* 사용자 상세 분석 모달 */}
+      {selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-xl max-w-4xl w-full my-8 p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Detailed Analysis: {selectedUser.nickname}</h2>
+              <button 
+                onClick={() => setSelectedUser(null)}
+                className="text-gray-500 hover:text-gray-700 text-3xl font-bold leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <div className="text-sm text-gray-600">Grade</div>
+                <div className="text-2xl font-bold text-blue-600">{selectedUser.grade}</div>
+              </div>
+              <div className="p-4 bg-green-50 rounded-lg">
+                <div className="text-sm text-gray-600">Total Points</div>
+                <div className="text-2xl font-bold text-green-600">{selectedUser.points}</div>
+              </div>
+              <div className="p-4 bg-purple-50 rounded-lg">
+                <div className="text-sm text-gray-600">Activities</div>
+                <div className="text-2xl font-bold text-purple-600">{selectedUser.activityCount}</div>
+              </div>
+              <div className="p-4 bg-orange-50 rounded-lg">
+                <div className="text-sm text-gray-600">Avg Score</div>
+                <div className="text-2xl font-bold text-orange-600">
+                  {selectedUser.activityCount > 0 ? Math.round(selectedUser.totalScore / selectedUser.activityCount) : 0}
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <h3 className="font-bold text-lg mb-4">Module Performance</h3>
+              <div className="grid grid-cols-2 gap-4">
+                {['Vocabulary', 'Grammar', 'Writing', 'Reading'].map(module => {
+                  const moduleLogs = logs.filter(log => 
+                    log.user_id === selectedUser.id && log.activity_type === module
+                  );
+                  const avgScore = moduleLogs.length > 0
+                    ? Math.round(moduleLogs.reduce((sum, log) => sum + (log.score || 0), 0) / moduleLogs.length)
+                    : 0;
+                  const totalTime = moduleLogs.reduce((sum, log) => sum + (log.duration_seconds || 0), 0);
+                  
+                  let bgColor = 'bg-red-50';
+                  let borderColor = 'border-red-200';
+                  let textColor = 'text-red-600';
+                  if (avgScore >= 80) {
+                    bgColor = 'bg-green-50';
+                    borderColor = 'border-green-200';
+                    textColor = 'text-green-600';
+                  } else if (avgScore >= 60) {
+                    bgColor = 'bg-blue-50';
+                    borderColor = 'border-blue-200';
+                    textColor = 'text-blue-600';
+                  }
+                  
+                  return (
+                    <div key={module} className={`p-4 ${bgColor} rounded-lg border ${borderColor}`}>
+                      <div className="font-bold text-gray-800">{module}</div>
+                      <div className="text-sm text-gray-600 mt-1">
+                        Avg Score: <span className={`font-bold ${textColor}`}>{avgScore}</span>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        Attempts: {moduleLogs.length}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        Total Time: {Math.round(totalTime / 60)}m
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                <h4 className="font-bold text-green-800 mb-2">Strengths</h4>
+                <ul className="space-y-1 text-sm">
+                  {['Vocabulary', 'Grammar', 'Writing', 'Reading'].map(module => {
+                    const moduleLogs = logs.filter(log => 
+                      log.user_id === selectedUser.id && log.activity_type === module
+                    );
+                    const avgScore = moduleLogs.length > 0
+                      ? Math.round(moduleLogs.reduce((sum, log) => sum + (log.score || 0), 0) / moduleLogs.length)
+                      : 0;
+                    if (avgScore >= 70 && moduleLogs.length > 0) {
+                      return <li key={module} className="text-green-700">✓ {module} ({avgScore} avg)</li>;
+                    }
+                    return null;
+                  }).filter(Boolean)}
+                  {['Vocabulary', 'Grammar', 'Writing', 'Reading'].every(module => {
+                    const moduleLogs = logs.filter(log => 
+                      log.user_id === selectedUser.id && log.activity_type === module
+                    );
+                    const avgScore = moduleLogs.length > 0
+                      ? Math.round(moduleLogs.reduce((sum, log) => sum + (log.score || 0), 0) / moduleLogs.length)
+                      : 0;
+                    return avgScore < 70 || moduleLogs.length === 0;
+                  }) && <li className="text-gray-500">No strong areas yet</li>}
+                </ul>
+              </div>
+              
+              <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                <h4 className="font-bold text-red-800 mb-2">Areas for Improvement</h4>
+                <ul className="space-y-1 text-sm">
+                  {['Vocabulary', 'Grammar', 'Writing', 'Reading'].map(module => {
+                    const moduleLogs = logs.filter(log => 
+                      log.user_id === selectedUser.id && log.activity_type === module
+                    );
+                    const avgScore = moduleLogs.length > 0
+                      ? Math.round(moduleLogs.reduce((sum, log) => sum + (log.score || 0), 0) / moduleLogs.length)
+                      : 0;
+                    if (avgScore < 70 && moduleLogs.length > 0) {
+                      return <li key={module} className="text-red-700">⚠ {module} ({avgScore} avg)</li>;
+                    }
+                    if (moduleLogs.length === 0) {
+                      return <li key={module} className="text-gray-600">○ {module} (No data)</li>;
+                    }
+                    return null;
+                  }).filter(Boolean)}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

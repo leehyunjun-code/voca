@@ -63,6 +63,8 @@ const GRAMMAR_SETS = [
     id: 1,
     title: "Subject-Verb Agreement (주어-동사 일치)",
     description: "Match the verb correctly with singular/plural subjects.",
+    minGrade: 6,
+    maxGrade: 8,
     questions: [
       { q: "The list of items _____ on the desk.", options: ["is", "are", "were", "be"], answer: 0, exp: "The subject is 'list' (singular), not 'items'. Therefore, the singular verb 'is' is correct.", expKo: "주어는 'items'가 아니라 'list'(단수)입니다. 따라서 단수 동사 'is'가 맞습니다." },
       { q: "Neither the teacher nor the students _____ happy about the decision.", options: ["was", "were", "is", "has"], answer: 1, exp: "In 'neither A nor B', the verb agrees with B (the closer noun). 'Students' is plural.", expKo: "'neither A nor B' 구문에서 동사는 B(더 가까운 명사)에 일치시킵니다. 'Students'가 복수이므로 'were'가 맞습니다." },
@@ -73,6 +75,8 @@ const GRAMMAR_SETS = [
     id: 2,
     title: "Tenses & Conditionals (시제와 가정법)",
     description: "Master the timeline of actions and hypothetical situations.",
+    minGrade: 7,
+    maxGrade: 10,
     questions: [
       { q: "By the time we arrive, the movie _____.", options: ["will start", "will have started", "started", "starts"], answer: 1, exp: "Future Perfect tense is used for an action that will be completed before a specific time in the future.", expKo: "미래완료 시제는 미래의 특정 시점 이전에 완료될 동작에 사용됩니다. (도착할 때쯤이면 이미 시작했을 것이다)" },
       { q: "If I _____ you, I would accept the offer.", options: ["was", "am", "were", "have been"], answer: 2, exp: "In the subjunctive mood (hypothetical situations), 'were' is used for all subjects.", expKo: "가정법 과거(현재의 반대 상황 가정)에서는 주어에 상관없이 be동사로 'were'를 사용합니다." },
@@ -83,6 +87,8 @@ const GRAMMAR_SETS = [
     id: 3,
     title: "Prepositions & Articles (전치사와 관사)",
     description: "Tricky small words that change meaning.",
+    minGrade: 7,
+    maxGrade: 9,
     questions: [
       { q: "He is accused _____ stealing the money.", options: ["for", "with", "of", "on"], answer: 2, exp: "The correct collocation is 'accused of'.", expKo: "'~로 고소당하다/비난받다'는 숙어적으로 'accused of'를 사용합니다." },
       { q: "I prefer coffee _____ tea.", options: ["than", "to", "from", "over"], answer: 1, exp: "With the verb 'prefer', we use 'to' for comparison, not 'than'.", expKo: "'prefer' 동사를 사용하여 비교할 때는 'than' 대신 'to'를 사용합니다 (prefer A to B)." },
@@ -93,6 +99,8 @@ const GRAMMAR_SETS = [
     id: 4,
     title: "Participles & Passive Voice (분사와 수동태)",
     description: "Active vs Passive and -ing/-ed adjectives.",
+    minGrade: 8,
+    maxGrade: 12,
     questions: [
       { q: "The book was _____ by a famous author.", options: ["wrote", "written", "writing", "write"], answer: 1, exp: "Passive voice requires 'be verb + past participle (V3)'.", expKo: "수동태는 'be동사 + 과거분사(p.p)' 형태를 취합니다." },
       { q: "I was _____ by the news.", options: ["shocking", "shocked", "shock", "shocks"], answer: 1, exp: "Use -ed adjectives to describe feelings. -ing adjectives describe the cause.", expKo: "감정을 느낄 때는 -ed 형태(과거분사)를 사용합니다. (뉴스가 충격적인 것(shocking)이고, 나는 충격을 받은 것(shocked))" },
@@ -103,6 +111,8 @@ const GRAMMAR_SETS = [
     id: 5,
     title: "Relative Clauses & Conjunctions (관계사와 접속사)",
     description: "Connecting ideas logically.",
+    minGrade: 9,
+    maxGrade: 12,
     questions: [
       { q: "This is the house _____ I was born.", options: ["which", "that", "where", "when"], answer: 2, exp: "'Where' is a relative adverb used for places.", expKo: "장소를 수식하는 관계부사는 'where'입니다. (which를 쓰려면 in which가 되어야 함)" },
       { q: "_____ it rained, we played soccer.", options: ["Despite", "Although", "Because", "However"], answer: 1, exp: "'Although' is a conjunction followed by a clause (S+V). 'Despite' requires a noun phrase.", expKo: "'Although'는 접속사로 뒤에 절(주어+동사)이 옵니다. 'Despite'는 전치사로 뒤에 명사가 옵니다." },
@@ -252,12 +262,22 @@ const Badge = ({ children, color = 'blue' }) => {
 
 // --- Main Application Component ---
 
-export default function App() {
+function App() {
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [view, setView] = useState('landing');
   const [loading, setLoading] = useState(true);
 
+  // 세션 저장
+  useEffect(() => {
+    if (userData && user) {
+      localStorage.setItem('user_session', JSON.stringify({
+        userData: user,
+        userDataDetails: userData,
+        timestamp: Date.now()
+      }));
+    }
+  }, [userData, user]);
   // 1. Initial Auth Check
   useEffect(() => {
     const initAuth = async () => {
@@ -266,12 +286,12 @@ export default function App() {
         if (session) {
           setUser(session.user);
         } else {
-          const { data, error } = await supabase.auth.signInAnonymously();
-          if (error) throw error;
-          setUser(data.user);
+          setView('landing');
         }
+        setLoading(false);
       } catch (error) {
         console.error("Auth init failed:", error);
+        setLoading(false);
       }
     };
     initAuth();
@@ -303,7 +323,32 @@ export default function App() {
           
           if (data) {
             setUserData(data);
-            setView((currentView) => currentView === 'landing' ? 'dashboard' : currentView);
+            setView((currentView) => currentView === 'landing' ? 'learninghub' : currentView);
+          } else {
+            // user가 users 테이블에 없으면 자동 생성
+            const { error: insertError } = await supabase
+              .from('users')
+              .insert({
+                id: user.id,
+                email: user.email || 'anonymous@temp.com',
+                nickname: 'Student',
+                points: 0
+              });
+            
+            if (insertError) {
+              console.error("Auto user creation error:", insertError);
+            } else {
+              // 다시 fetch
+              const { data: newData } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', user.id)
+                .maybeSingle();
+              
+              if (newData) {
+                setUserData(newData);
+              }
+            }
           }
         } catch (error) {
           console.error("Profile fetch failed:", error);
@@ -318,7 +363,7 @@ export default function App() {
   const logActivity = async (type, details, durationSeconds = 0, score = 0) => {
     if (!user) return;
     try {
-      await supabase
+      const { error } = await supabase
         .from('activity_logs')
         .insert({
           user_id: user.id,
@@ -326,8 +371,14 @@ export default function App() {
           module: type,
           details: { description: details },
           duration_seconds: Math.round(durationSeconds),
-          score: score
+          score: score,
+          created_at: new Date().toISOString()
         });
+      
+      if (error) {
+        console.error("Activity log error:", error);
+        return;
+      }
       
       if (score > 0) {
         const { data, error: fetchError } = await supabase
@@ -373,13 +424,12 @@ export default function App() {
             
             {!['landing', 'onboarding'].includes(view) && (
               <div className="flex flex-col md:flex-row min-h-screen">
-                <Sidebar view={view} setView={setView} userData={userData} />
-                <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen bg-slate-50">
-                  {view === 'dashboard' && <Dashboard setView={setView} userData={userData} />}
+                  <Sidebar view={view} setView={setView} userData={userData} setUser={setUser} setUserData={setUserData} />                <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen bg-slate-50">
+                  {view === 'learninghub' && <LearningHub setView={setView} userData={userData} />}
                   {view === 'vocab' && <VocabModule logActivity={logActivity} user={user} />}
                   {view === 'writing' && <WritingModule logActivity={logActivity} user={user} />}
                   {view === 'reading' && <ReadingModule logActivity={logActivity} user={user} />}
-                  {view === 'grammar' && <GrammarModule logActivity={logActivity} />}
+                  {view === 'grammar' && <GrammarModule logActivity={logActivity} user={user} />}
                   {view === 'mypage' && <MyPage userData={userData} user={user} />}
                 </main>
               </div>
@@ -391,6 +441,8 @@ export default function App() {
   );
 }
 
+export default App;
+
 // --- Sub-Components ---
 
 const LandingPage = ({ setView, user, setUserData }) => {
@@ -398,78 +450,78 @@ const LandingPage = ({ setView, user, setUserData }) => {
   const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
+
 
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!email.includes('@')) return alert("Please enter a valid school email.");
     if (!password) return alert("Please enter a password.");
     if (!nickname && !isLogin) return alert("Please enter a nickname for signup.");
-    if (!user) return alert("System initializing, please try again.");
+    if (!agreedToTerms && !isLogin) return alert("You must agree to the Terms of Service and AI Content Disclaimer to continue.");
 
     try {
-      // 이메일로 사용자 검색
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .maybeSingle();
-      
-      if (error) {
-        console.error("Query error:", error);
-      }
-      
-      if (data) {
-        // 기존 사용자 존재
-        if (isLogin) {
-          // 로그인 모드
-          if (data.password === password) {
-            // 현재 익명 사용자 ID로 업데이트
-            await supabase
-              .from('users')
-              .update({ id: user.id })
-              .eq('email', email);
-            
-            setUserData({ ...data, id: user.id });
-            setView('dashboard');
-          } else {
-            alert("Incorrect password.");
-          }
-        } else {
-          // 회원가입 모드인데 이메일이 이미 존재
-          alert("This email is already registered. Please login.");
-          setIsLogin(true);
-        }
-      } else {
-        // 신규 사용자 - 회원가입
-        if (isLogin) {
-          alert("Account not found. Please sign up.");
-          setIsLogin(false);
+      if (isLogin) {
+        // 로그인
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+        
+        if (authError) {
+          alert("Login failed: " + authError.message);
           return;
         }
-        const newData = { 
-          id: user.id,
-          email, 
-          nickname, 
-          password, 
-          points: 0 
-        };
         
+        // users 테이블에서 추가 정보 가져오기
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', authData.user.id)
+          .maybeSingle();
+        
+        if (userData) {
+          setUserData(userData);
+          setView('learninghub');
+        } else {
+          // Auth는 있는데 users 테이블에 없으면 onboarding
+          setView('onboarding');
+        }
+        
+      } else {
+        // 회원가입
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email,
+          password
+        });
+        
+        if (authError) {
+          alert("Sign up failed: " + authError.message);
+          return;
+        }
+        
+        // users 테이블에 추가 정보 저장
         const { error: insertError } = await supabase
           .from('users')
-          .insert(newData);
+          .insert({
+            id: authData.user.id,
+            email,
+            nickname,
+            points: 0
+          });
         
         if (insertError) {
           console.error("Insert error:", insertError);
-          alert("Failed to create account: " + insertError.message);
+          alert("Failed to create profile: " + insertError.message);
           return;
         }
         
-        setUserData(newData);
         setView('onboarding');
       }
     } catch (err) {
-      console.error("Login Error:", err);
-      alert("Error logging in: " + err.message);
+      console.error("Auth Error:", err);
+      alert("Error: " + err.message);
     }
   };
 
@@ -495,13 +547,95 @@ const LandingPage = ({ setView, user, setUserData }) => {
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="********" />
           </div>
           {!isLogin && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nickname</label>
-              <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="Your name" />
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nickname</label>
+                <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="Your name" />
+              </div>
+              
+              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={agreedToTerms}
+                    onChange={(e) => setAgreedToTerms(e.target.checked)}
+                    className="mt-1 w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                  />
+                  <span className="text-sm text-gray-700">
+                    I agree to the{' '}
+                    <button 
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); setShowDisclaimer(true); }}
+                      className="text-indigo-600 hover:underline font-medium"
+                    >
+                      Terms of Service and AI Content Disclaimer
+                    </button>
+                    {' '}(Required)
+                  </span>
+                </label>
+              </div>
+            </>
           )}
-          <Button className="w-full justify-center">{isLogin ? "Enter Class" : "Join Class"}</Button>
+          <Button className="w-full justify-center" disabled={!isLogin && !agreedToTerms}>
+            {isLogin ? "Enter Class" : "Join Class"}
+          </Button>
         </form>
+      </div>
+    </div>
+  );
+};
+
+
+// --- Disclaimer Modal ---
+const DisclaimerModal = ({ isOpen, onClose, onAgree }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-xl max-w-3xl max-h-[80vh] overflow-y-auto p-6">
+        <h2 className="text-2xl font-bold mb-4">True Review 서비스 AI 활용 및 저작권 고지</h2>
+        
+        <div className="space-y-4 text-sm text-gray-700">
+          <section>
+            <h3 className="font-bold text-lg mb-2">1) AI 생성 콘텐츠의 범위</h3>
+            <p className="mb-2">본 True Review(Valosoreum) 웹사이트에서 제공되는 다음 학습 콘텐츠 및 피드백 기능은 인공지능(AI) 모델을 활용하여 생성 및 제공됩니다.</p>
+            <ul className="list-disc list-inside ml-4 space-y-1">
+              <li>Vocabulary/Grammar: 자동 문제 생성 및 해설</li>
+              <li>Reading: 독해 지문, 문제 구성, 해설 및 전체 해석</li>
+              <li>Writing: 글쓰기 주제 제시 및 제출된 글에 대한 채점, 개선점 및 피드백</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3 className="font-bold text-lg mb-2">2) 저작권 및 면책 조항</h3>
+            <ul className="list-disc list-inside ml-4 space-y-2">
+              <li><strong>독창성 노력:</strong> 이 웹사이트는 AI 모델이 학습 데이터를 기반으로 새롭고 독창적인 학습 지문 및 문제를 생성하도록 프롬프트 엔지니어링을 적용하고 있습니다.</li>
+              <li><strong>우발적 유사성:</strong> 그럼에도 불구하고, AI가 생성한 콘텐츠가 기존에 출판된 특정 저작물과 우발적으로 유사하거나 일부 저작권을 침해할 가능성을 완전히 배제할 수 없습니다. 이 웹사이트는 이에 대해 명시적인 보증을 제공하지 않습니다.</li>
+              <li><strong>사용자의 책임:</strong> 사용자는 제공된 학습 콘텐츠를 개인 학습 목적으로만 사용해야 하며, 이를 복제, 배포 또는 상업적으로 이용할 수 없습니다.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3 className="font-bold text-lg mb-2">3) 저작권 침해 신고 및 조치</h3>
+            <p className="mb-2">본 서비스의 콘텐츠가 귀하 또는 제3자의 저작권을 침해한다고 판단될 경우, 당사(hj040701.lee@gmail.com)로 즉시 신고해 주시기 바랍니다.</p>
+            <p>신고 접수 후 사실 관계 확인을 거쳐, 침해가 명백한 콘텐츠는 즉시 삭제 또는 수정하는 조치를 취하겠습니다.</p>
+          </section>
+
+          <section>
+            <h3 className="font-bold text-lg mb-2">4) 데이터 활용 및 개인정보</h3>
+            <p className="mb-2">학생이 제출한 글쓰기 및 학습 기록 데이터는 오직 서비스 개선, 맞춤형 학습 분석(My Page 분석 및 Action Plan 등), 그리고 AI 모델의 성능 향상 목적으로만 활용됩니다.</p>
+            <p className="text-gray-500 text-xs">개인정보 보호에 관한 자세한 사항은 개인정보 처리방침을 참조하시기 바랍니다.</p>
+          </section>
+        </div>
+
+        <div className="flex gap-4 mt-6">
+          <button onClick={onClose} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+            Cancel
+          </button>
+          <button onClick={onAgree} className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+            I Agree
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -515,6 +649,8 @@ const Onboarding = ({ setView, user, setUserData }) => {
   const [avgTime, setAvgTime] = useState('');
   const [targetMajor, setTargetMajor] = useState('');
   const [interests, setInterests] = useState([]);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
 
   const toggleInterest = (tag) => {
     if (interests.includes(tag)) {
@@ -551,7 +687,7 @@ const Onboarding = ({ setView, user, setUserData }) => {
     }
     
     setUserData(prev => ({ ...prev, ...updates }));
-    setView('dashboard');
+    setView('learninghub');
   };
 
   return (
@@ -564,7 +700,7 @@ const Onboarding = ({ setView, user, setUserData }) => {
               <label className="block text-sm font-medium mb-2">Grade Level</label>
               <select className="w-full p-2 border rounded-lg" value={grade} onChange={e => setGrade(e.target.value)}>
                 <option value="">Select Grade</option>
-                {[7,8,9,10,11,12].map(g => <option key={g} value={g}>Grade {g}</option>)}
+                {[6,7,8,9,10,11,12].map(g => <option key={g} value={g}>Grade {g}</option>)}
               </select>
             </div>
             <div>
@@ -632,16 +768,34 @@ const Onboarding = ({ setView, user, setUserData }) => {
             </div>
           </div>
         </div>
-        <Button className="w-full justify-center mt-8" onClick={handleSubmit}>Start Learning Journey</Button>
+
+        <Button 
+          className="w-full justify-center mt-4" 
+          onClick={handleSubmit}
+        >
+          Start Learning Journey
+        </Button>
       </Card>
+      
+      <DisclaimerModal 
+        isOpen={showDisclaimer}
+        onClose={() => setShowDisclaimer(false)}
+        onAgree={() => {
+          setAgreedToTerms(true);
+          setShowDisclaimer(false);
+        }}
+      />
     </div>
   );
 };
 
-const Sidebar = ({ view, setView, userData }) => {
+const Sidebar = ({ view, setView, userData, setUser, setUserData }) => {
   const handleSignOut = async () => {
     try {
+      localStorage.clear();
       await supabase.auth.signOut();
+      setUser(null);
+      setUserData(null);
       window.location.reload();
     } catch (error) {
       console.error("Sign out error:", error);
@@ -650,7 +804,7 @@ const Sidebar = ({ view, setView, userData }) => {
   };
 
   const menuItems = [
-    { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { id: 'learninghub', icon: LayoutDashboard, label: 'Learning Hub' },
     { id: 'vocab', icon: BookOpen, label: 'Vocabulary' },
     { id: 'grammar', icon: CheckCircle2, label: 'Grammar' },
     { id: 'writing', icon: PenTool, label: 'Writing' },
@@ -660,7 +814,7 @@ const Sidebar = ({ view, setView, userData }) => {
 
   return (
     <div className="w-full md:w-64 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
-      <div className="p-6 border-b border-gray-100 cursor-pointer hover:bg-indigo-50 transition-colors" onClick={() => setView('dashboard')}>
+      <div className="p-6 border-b border-gray-100 cursor-pointer hover:bg-indigo-50 transition-colors" onClick={() => setView('learninghub')}>
         <h2 className="font-bold text-xl text-indigo-900">True Review</h2>
         <p className="text-xs text-indigo-500 tracking-wider">VALOSOREUM</p>
         <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
@@ -685,37 +839,37 @@ const Sidebar = ({ view, setView, userData }) => {
   );
 };
 
-const Dashboard = ({ setView, userData }) => (
-  <div className="space-y-6">
-    <header className="mb-8">
-      <h1 className="text-2xl font-bold text-gray-900">Welcome back, {userData?.nickname || 'Student'}!</h1>
-      <p className="text-gray-600">Ready to boost your English skills today?</p>
-    </header>
+const LearningHub = ({ setView, userData }) => (
+  <div className="space-y-8">
+    {/* Hero Banner */}
+    <div className="relative h-96 bg-gradient-to-br from-gray-400 to-gray-600 rounded-xl overflow-hidden bg-cover bg-center" style={{backgroundImage: 'url(/main.png)'}}>      <div className="absolute inset-0 flex flex-col justify-end p-8 text-white">
+        <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded w-fit mb-4">FEATURED STORY</span>
+        <h2 className="text-4xl font-bold mb-2">Prove Your Value Through Courage</h2>
+        <p className="text-lg text-gray-200">Ignore the noise. Focus on the truth. Your dreams are waiting.</p>
+      </div>
+    </div>
+
+    {/* Study Areas */}
+    <div className="flex justify-between items-center mb-4">
+      <h3 className="text-2xl font-bold text-gray-900">Study Areas</h3>
+      <button className="text-sm text-gray-600 hover:text-indigo-600 font-medium">VIEW ALL</button>
+    </div>
+
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {[
-        { title: "Vocabulary", desc: "TOEFL & SAT Master", icon: BookOpen, color: "bg-blue-500", id: 'vocab' },
-        { title: "Grammar", desc: "Core Structure", icon: CheckCircle2, color: "bg-green-500", id: 'grammar' },
-        { title: "Writing", desc: "Essay & Logic", icon: PenTool, color: "bg-purple-500", id: 'writing' },
-        { title: "Reading", desc: "Advanced Analysis", icon: Search, color: "bg-orange-500", id: 'reading' }
+        { title: "Vocabulary", desc: "Expand your lexicon with daily words and contextual usage examples.", icon: BookOpen, color: "text-blue-500", id: 'vocab' },
+        { title: "Grammar", desc: "Master the structure of language with clear rules and practice.", icon: CheckCircle2, color: "text-green-500", id: 'grammar' },
+        { title: "Writing", desc: "Express your thoughts clearly and persuasively through essays.", icon: PenTool, color: "text-purple-500", id: 'writing' },
+        { title: "Reading", desc: "Deep dive into texts to enhance comprehension and critical thinking.", icon: Search, color: "text-orange-500", id: 'reading' }
       ].map((card) => (
         <button key={card.title} onClick={() => setView(card.id)} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow text-left group">
-          <div className={`${card.color} w-12 h-12 rounded-lg flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform`}><card.icon size={24} /></div>
-          <h3 className="font-bold text-lg text-gray-900">{card.title}</h3>
-          <p className="text-sm text-gray-500">{card.desc}</p>
+          <card.icon size={32} className={`${card.color} mb-4`} />
+          <h3 className="font-bold text-lg text-gray-900 mb-2">{card.title}</h3>
+          <p className="text-sm text-gray-600 leading-relaxed">{card.desc}</p>
         </button>
       ))}
     </div>
-    <Card className="mt-8 bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-none">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="font-bold text-xl mb-2">Daily Challenge</h3>
-          <p className="text-indigo-100 mb-4">Complete 1 Reading set to earn 50 bonus points!</p>
-          <Button variant="secondary" onClick={() => setView('reading')}>Start Challenge</Button>
-        </div>
-        <Trophy size={64} className="text-yellow-300 opacity-80" />
-      </div>
-    </Card>
-  </div>
+    </div>
 );
 
 // --- Module: Vocabulary ---
@@ -765,8 +919,12 @@ const VocabModule = ({ logActivity, user }) => {
           model: 'gpt-4o-mini',
           messages: [{
             role: 'user',
-            content: `Generate 5 ${type} vocabulary words appropriate for Grade ${grade} international school students. For each word, provide:
-1. The word
+            content: `Generate 5 COMPLETELY NEW and DIFFERENT ${type} vocabulary words appropriate for Grade ${grade} international school students. 
+
+IMPORTANT: Create words that are UNIQUE and NOT commonly used in typical ${type} lists. Avoid repetitive or similar words from previous generations. Use diverse and uncommon vocabulary.
+
+For each word, provide:
+1. The word (must be diverse and uncommon)
 2. Korean meaning
 3. 3 incorrect Korean meanings (plausible distractors)
 
@@ -781,7 +939,7 @@ Return ONLY a JSON array with this exact format:
 
 Make sure the correct meaning is always included in the options array.`
           }],
-          temperature: 0.8
+          temperature: 1.0
         })
       });
 
@@ -858,9 +1016,11 @@ Make sure the correct meaning is always included in the options array.`
         const nextQ = currentQuestion + 1;
         if (nextQ % vocabSet.length === 0) {
           // 5개 문제 끝났으면 새로운 세트 생성
+          setCurrentQuestion(0); // 인덱스 리셋
           generateVocab(mode);
+        } else {
+          setCurrentQuestion(nextQ);
         }
-        setCurrentQuestion(nextQ);
       }
     }, 2000);
   };
@@ -953,7 +1113,16 @@ Make sure the correct meaning is always included in the options array.`
       <p className="text-gray-600 mb-2">You answered <span className="font-bold text-indigo-600">{totalAnswered} words</span></p>
       <p className="text-gray-600 mb-6">Final Score: <span className="font-bold text-indigo-600">{score} points</span></p>
       <div className="flex gap-4 justify-center">
-        <Button onClick={resetGame}>New Battle</Button>
+        <Button onClick={() => {
+          setShowResult(false);
+          setScore(0);
+          setHearts(5);
+          setCurrentQuestion(0);
+          setTotalAnswered(0);
+          setWrongWords([]);
+          startTime.current = Date.now();
+          generateVocab(mode);
+        }}>Different Problems</Button>
         {wrongWords.length > 0 && (
           <Button variant="secondary" onClick={() => setShowReview(true)}>Review Wrong Words ({wrongWords.length})</Button>
         )}
@@ -1066,6 +1235,7 @@ const WritingModule = ({ logActivity, user }) => {
   }, [user]);
 
   // GPT로 주제 생성
+  // GPT로 주제 생성
   const generateTopic = async (selectedLevel) => {
     setLoading(true);
     try {
@@ -1091,22 +1261,26 @@ const WritingModule = ({ logActivity, user }) => {
           model: 'gpt-4o-mini',
           messages: [{
             role: 'user',
-            content: `You are creating a writing task for Grade ${grade} international school students at ${selectedLevel} level.
+            content: `You are creating a COMPLETELY NEW and UNIQUE writing task for Grade ${grade} international school students at ${selectedLevel} level.
+
+IMPORTANT: Generate a FRESH topic that is DIFFERENT from typical or previous prompts. Use creative angles, current issues, or uncommon perspectives.
 
 ${instruction}
 
 Return ONLY a JSON object with this format:
 {
   "prompt": "main question or sentence",
-  "keywords": ["word1 (의미1)", "word2 (의미2)", "word3 (의미3)"],
+  "keywords": ["word1", "word2", "word3"],
   "instruction": "English instruction",
   "instructionKo": "한글 설명",
   "context": "background context (only for Advanced level, otherwise null)"
 }
 
-Make sure the difficulty matches Grade ${grade} ${selectedLevel} level.`
+CRITICAL: "keywords" array must contain ONLY English words, NO Korean translations, NO parentheses. Example: ["beautiful", "dreams", "magic"] NOT ["beautiful (아름다운)", "dreams (꿈)"]
+
+Make sure the difficulty matches Grade ${grade} ${selectedLevel} level with varied topics.`
           }],
-          temperature: 0.9
+          temperature: 1.0
         })
       });
 
@@ -1178,24 +1352,38 @@ REQUIRED HELPER WORDS: ${topic.keywords.join(', ')}
 STUDENT'S WRITING:
 "${input}"
 
-INSTRUCTIONS:
-1. Check if the student used ALL required helper words (${topic.keywords.join(', ')})
+CRITICAL INSTRUCTIONS:
+1. KEYWORD MATCHING RULES (VERY IMPORTANT):
+   - Convert both the student's text AND all required keywords to LOWERCASE before checking
+   - Remove all punctuation (commas, periods, etc.) from the student's text
+   - A keyword is "used" if it appears ANYWHERE in the student's text (case-insensitive)
+   - Example: If required word is "City", then "city", "City", "CITY" all count as used
+   - Example: If student wrote "city, adventurous", both "city" and "adventurous" should be marked as used
+   - Check each keyword independently by searching: does the lowercase student text contain the lowercase keyword?
 2. Evaluate grammar, vocabulary, and structure appropriate for Grade ${userGrade} ${level} level
-3. Provide ONE total score out of 100
-4. If helper words are missing, deduct points significantly
-5. Show corrected version with improvements
-6. Explain errors in Korean
+3. Analyze the logical structure: Claim-Reason-Conclusion (주장-근거-마무리)
+4. Assess whether the argument is well-supported with strong evidence
+5. Provide ONE total score out of 100
+6. If helper words are missing, deduct points significantly
+7. **IMPORTANT: For "correctedText", ONLY fix grammar, vocabulary, and sentence structure. DO NOT change the student's main idea or content. Keep the student's original meaning intact.**
+8. Provide specific examples of how to strengthen the argument and address counterarguments
 
 RESPOND IN THIS JSON FORMAT ONLY:
 {
   "score": 85,
   "usedKeywords": ["fluffy", "warm"],
   "missingKeywords": ["happily"],
+  
+NOTE: When checking keywords, ignore case differences. "Beautiful", "beautiful", "BEAUTIFUL" are all the same word.
   "originalText": "student's original text",
-  "correctedText": "improved version here",
+  "correctedText": "student's text with ONLY grammar/vocabulary fixes, keeping original meaning",
+  "structureAnalysis": "Analysis of Claim-Reason-Conclusion structure in English",
+  "structureAnalysisKo": "주장-근거-마무리 구조 분석 (한글)",
   "feedback": "English feedback explaining what was good and what needs improvement",
   "feedbackKo": "한글로 피드백 (문법 오류, 개선점 설명)",
-  "improvements": ["Added adjective 'fluffy'", "Better sentence structure"]
+  "improvements": ["Fixed grammar error", "Better word choice"],
+  "counterargumentExample": "Example of how to address counterarguments (English)",
+  "counterargumentExampleKo": "반론 대응 예시 (한글)"
 }`
           }],
           temperature: 0.7
@@ -1336,7 +1524,7 @@ RESPOND IN THIS JSON FORMAT ONLY:
               )}
             </div>
           </Card>
-          <Button onClick={() => { setFeedback(null); setInput(''); generateTopic(level); }} className="w-full" variant="secondary">Different Topic (다른 주제)</Button>
+          <Button onClick={() => { setFeedback(null); setInput(''); generateTopic(level); }} className="w-full" variant="secondary">Different Problems</Button>
         </div>
       )}
     </div>
@@ -1373,14 +1561,15 @@ const ReadingModule = ({ logActivity, user }) => {
   }, [user]);
 
 // GPT로 지문 생성
+  // GPT로 지문 생성
   const generateReading = async () => {
     setLoading(true);
     try {
       const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
       const grade = userGrade || 9;
       
-      let questionCount = level === 'Junior' ? 3 : 5;
-      let paragraphCount = level === 'Junior' ? "2-3 paragraphs" : "4-5 paragraphs";
+      let questionCount = 3;
+      let paragraphCount = level === 'Junior' ? "2-3 paragraphs" : "3 paragraphs";
       
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -1392,10 +1581,12 @@ const ReadingModule = ({ logActivity, user }) => {
           model: 'gpt-4o-mini',
           messages: [{
             role: 'user',
-            content: `Create a ${level} level reading comprehension passage for Grade ${grade} international school students in the category: ${category}.
+            content: `Create a COMPLETELY NEW and UNIQUE ${level} level reading comprehension passage for Grade ${grade} international school students in the category: ${category}.
 
-Write ${paragraphCount} of academic text appropriate for ${level} level.
-Create ${questionCount} multiple-choice questions.
+IMPORTANT: Generate a passage on a FRESH topic that has NOT been covered before. Use creative angles, recent developments, or uncommon perspectives within the ${category} field. Avoid repetitive themes or standard textbook topics.
+
+Write ${paragraphCount} of academic text appropriate for ${level} level with diverse vocabulary and sentence structures.
+Create ${questionCount} multiple-choice questions that test deep comprehension, not just surface details.
 
 Return ONLY a JSON object:
 {
@@ -1416,16 +1607,18 @@ Return ONLY a JSON object:
   ]
 }
 
-Make the content engaging and educational for Grade ${grade} ${level} level.`
+Make the content engaging, educational, and DIFFERENT from typical passages for Grade ${grade} ${level} level.`
           }],
-          temperature: 0.8
+          temperature: 1.0
         })
       });
 
       const data = await response.json();
       const content = data.choices[0].message.content;
       const jsonMatch = content.match(/\{[\s\S]*\}/);
-      const readingData = JSON.parse(jsonMatch[0]);
+      // JSON 내부의 제어 문자 제거
+      const cleanedJson = jsonMatch[0].replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
+      const readingData = JSON.parse(cleanedJson);
       
       setCurrentContent(readingData);
       setLoading(false);
@@ -1486,7 +1679,7 @@ Make the content engaging and educational for Grade ${grade} ${level} level.`
             {['Junior', 'Standard'].map(l => (
               <button key={l} onClick={() => handleLevelSelect(l)} className="p-8 bg-white border border-gray-200 rounded-xl hover:border-orange-500 shadow-sm hover:shadow-lg transition-all text-left">
                 <h3 className="text-xl font-bold mb-2">{l} Reading</h3>
-                <p className="text-sm text-gray-500">{l === 'Junior' ? "2-3 paragraphs, 3 questions. Basic concepts." : "4-5 paragraphs, 5 questions. Academic analysis."}</p>              </button>
+                <p className="text-sm text-gray-500">{l === 'Junior' ? "2-3 paragraphs, 3 questions. Basic concepts." : "3 paragraphs, 3 questions. Academic analysis."}</p>              </button>
             ))}
           </div>
         </div>
@@ -1617,7 +1810,11 @@ Make the content engaging and educational for Grade ${grade} ${level} level.`
         ) : (
           <div className="text-center py-8">
              <div className="text-3xl font-bold text-indigo-700 mb-4">Total Score: {score} Points</div>
-             <Button className="mx-auto" onClick={quitReading}>Different Article (다른 지문)</Button>
+             <Button className="mx-auto" onClick={() => {
+               setSubmitted(false);
+               setUserAnswers({});
+               generateReading();
+             }}>Different Problems</Button>
           </div>
         )}
       </div>
@@ -1626,19 +1823,105 @@ Make the content engaging and educational for Grade ${grade} ${level} level.`
 };
 
 // --- Module: Grammar ---
-const GrammarModule = ({ logActivity }) => {
+const GrammarModule = ({ logActivity, user }) => {
   const [selectedSet, setSelectedSet] = useState(null);
   const [userAnswers, setUserAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
+  const [userGrade, setUserGrade] = useState(null);
+  const [loading, setLoading] = useState(true);
   const startTime = useRef(Date.now());
 
+  // 사용자 Grade 가져오기
+  useEffect(() => {
+    const fetchUserGrade = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('users')
+        .select('grade')
+        .eq('id', user.id)
+        .maybeSingle();
+      setUserGrade(data?.grade || 9);
+      setLoading(false);
+    };
+    fetchUserGrade();
+  }, [user]);
+
+  // 학년에 맞는 Grammar Sets 필터링
+  const getAvailableSets = () => {
+    if (!userGrade) return [];
+    return GRAMMAR_SETS.filter(set => 
+      userGrade >= set.minGrade && userGrade <= set.maxGrade
+    ).map((set, index) => ({
+      ...set,
+      displayId: index + 1 // 화면에 표시될 번호
+    }));
+  };
+
+  const generateGrammarQuestions = async (set) => {
+    setLoading(true);
+    try {
+      const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
+      const grade = userGrade || 9;
+      
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [{
+            role: 'user',
+            content: `Create 3 COMPLETELY NEW and UNIQUE grammar questions for Grade ${grade} international school students on the topic: "${set.title}".
+
+IMPORTANT: Generate questions that are DIFFERENT from typical textbook examples. Use diverse sentence structures, various contexts, and creative scenarios. Avoid repetitive patterns or common examples.
+
+Topic Description: ${set.description}
+
+Return ONLY a JSON array with this format:
+[
+  {
+    "q": "question text with blank _____ ",
+    "options": ["option1", "option2", "option3", "option4"],
+    "answer": 0,
+    "exp": "English explanation why this is correct",
+    "expKo": "한글 해설"
+  }
+]
+
+Make questions appropriate for Grade ${grade} level with varied difficulty.`
+          }],
+          temperature: 1.0
+        })
+      });
+
+      const data = await response.json();
+      const content = data.choices[0].message.content;
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      const questions = JSON.parse(jsonMatch[0]);
+      
+      setSelectedSet({ ...set, questions });
+      setUserAnswers({});
+      setSubmitted(false);
+      setScore(0);
+      startTime.current = Date.now();
+      setLoading(false);
+    } catch (error) {
+      console.error("GPT API Error:", error);
+      alert("Failed to generate questions. Using default set.");
+      setSelectedSet(set);
+      setUserAnswers({});
+      setSubmitted(false);
+      setScore(0);
+      startTime.current = Date.now();
+      setLoading(false);
+    }
+  };
+
   const startQuiz = (set) => {
-    setSelectedSet(set);
-    setUserAnswers({});
-    setSubmitted(false);
-    setScore(0);
-    startTime.current = Date.now();
+    generateGrammarQuestions(set);
   };
 
   const handleSelect = (qIdx, optionIdx) => {
@@ -1668,20 +1951,25 @@ const GrammarModule = ({ logActivity }) => {
     setSubmitted(false);
   };
 
+  if (loading) return <div className="text-center py-10">Loading...</div>;
+
+  const availableSets = getAvailableSets();
+
   if (!selectedSet) {
     return (
       <div className="space-y-6">
         <h2 className="text-2xl font-bold text-gray-900">Grammar Laboratory</h2>
-        <p className="text-gray-600">Select a topic to strengthen your structural foundation.</p>
+        {userGrade && <p className="text-gray-600">Grade {userGrade} Level - Select a topic to strengthen your structural foundation.</p>}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {GRAMMAR_SETS.map(set => (
+          {availableSets.map(set => (
             <button 
               key={set.id} 
               onClick={() => startQuiz(set)}
+              disabled={loading}
               className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-indigo-500 transition-all text-left group"
             >
               <div className="flex justify-between items-center mb-2">
-                <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full">Set {set.id}</span>
+                <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full">Set {set.displayId}</span>
                 <ChevronRight className="text-gray-300 group-hover:text-indigo-500 transition-colors" size={20} />
               </div>
               <h3 className="text-lg font-bold text-gray-800 mb-1">{set.title}</h3>
@@ -1775,7 +2063,7 @@ const GrammarModule = ({ logActivity }) => {
         </div>
       ) : (
         <div className="mt-8 text-center pb-8">
-          <Button className="mx-auto" variant="outline" onClick={goBack}>Different Set (다른 세트)</Button>
+          <Button className="mx-auto" variant="outline" onClick={() => generateGrammarQuestions(selectedSet)}>Different Problems</Button>
         </div>
       )}
     </div>
@@ -1939,6 +2227,7 @@ const MyPage = ({ userData, user }) => {
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
   const [detailView, setDetailView] = useState(false);
+  const [analysisView, setAnalysisView] = useState(false);
   const [editData, setEditData] = useState({
     nickname: '',
     email: '',
@@ -1947,7 +2236,6 @@ const MyPage = ({ userData, user }) => {
     level: 'Intermediate'
   });
 
-  // userData 로드 시 editData 초기화
   useEffect(() => {
     if (userData) {
       setEditData({
@@ -1969,7 +2257,7 @@ const MyPage = ({ userData, user }) => {
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
-          .limit(20);
+          .limit(50);
         
         setLogs(data || []);
       } catch (error) {
@@ -2015,6 +2303,157 @@ const MyPage = ({ userData, user }) => {
   const totalScore = logs.reduce((sum, log) => sum + (log.score || 0), 0);
   const avgScore = totalActivities > 0 ? Math.round(totalScore / totalActivities) : 0;
 
+  // 학습 분석 뷰
+  if (analysisView) {
+    const moduleStats = ['Vocabulary', 'Grammar', 'Writing', 'Reading'].map(module => {
+      const moduleLogs = logs.filter(log => log.activity_type === module);
+      const avgScore = moduleLogs.length > 0
+        ? Math.round(moduleLogs.reduce((sum, log) => sum + (log.score || 0), 0) / moduleLogs.length)
+        : 0;
+      const totalTime = moduleLogs.reduce((sum, log) => sum + (log.duration_seconds || 0), 0);
+      
+      return { module, avgScore, attempts: moduleLogs.length, totalTime };
+    });
+
+    const strengths = moduleStats.filter(m => m.avgScore >= 70 && m.attempts > 0);
+    const weaknesses = moduleStats.filter(m => (m.avgScore < 70 && m.attempts > 0) || m.attempts === 0);
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <button onClick={() => setAnalysisView(false)} className="text-gray-500 hover:text-indigo-600">
+            ← Back
+          </button>
+          <h2 className="text-2xl font-bold">My Learning Analysis</h2>
+        </div>
+
+        {/* 전체 성과 요약 */}
+        <Card className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-xl font-bold mb-2">Overall Performance</h3>
+              <p className="text-indigo-100">Grade {userData?.grade} - {userData?.level} Level</p>
+            </div>
+            <div className="text-right">
+              <div className="text-4xl font-bold">{avgScore}</div>
+              <div className="text-sm text-indigo-100">Average Score</div>
+            </div>
+          </div>
+        </Card>
+
+        {/* 모듈별 성과 */}
+        <Card>
+          <h3 className="font-bold text-lg mb-4">Module Performance</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {moduleStats.map(({ module, avgScore, attempts, totalTime }) => {
+              let bgColor = 'bg-red-50';
+              let borderColor = 'border-red-200';
+              let textColor = 'text-red-600';
+              if (avgScore >= 80) {
+                bgColor = 'bg-green-50';
+                borderColor = 'border-green-200';
+                textColor = 'text-green-600';
+              } else if (avgScore >= 60) {
+                bgColor = 'bg-blue-50';
+                borderColor = 'border-blue-200';
+                textColor = 'text-blue-600';
+              }
+
+              return (
+                <div key={module} className={`p-4 ${bgColor} rounded-lg border ${borderColor}`}>
+                  <div className="font-bold text-gray-800 mb-2">{module}</div>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Avg Score:</span>
+                      <span className={`font-bold ${textColor}`}>{avgScore}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Attempts:</span>
+                      <span className="font-medium">{attempts}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Time Spent:</span>
+                      <span className="font-medium">{Math.round(totalTime / 60)}m</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* 강점 & 약점 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card className="bg-green-50 border-green-200">
+            <h3 className="font-bold text-lg text-green-800 mb-4">My Strengths</h3>
+            {strengths.length > 0 ? (
+              <ul className="space-y-2">
+                {strengths.map(({ module, avgScore }) => (
+                  <li key={module} className="flex items-center gap-2 text-green-700">
+                    <CheckCircle2 size={16} />
+                    <span className="font-medium">{module}</span>
+                    <span className="text-sm">({avgScore} avg)</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-gray-600 text-sm">Complete more activities to see your strengths!</p>
+            )}
+          </Card>
+
+          <Card className="bg-orange-50 border-orange-200">
+            <h3 className="font-bold text-lg text-orange-800 mb-4">Areas to Improve</h3>
+            {weaknesses.length > 0 ? (
+              <ul className="space-y-2">
+                {weaknesses.map(({ module, avgScore, attempts }) => (
+                  <li key={module} className="flex items-center gap-2 text-orange-700">
+                    <AlertCircle size={16} />
+                    <span className="font-medium">{module}</span>
+                    <span className="text-sm">
+                      {attempts === 0 ? '(No data)' : `(${avgScore} avg)`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-gray-600 text-sm">Great job! Keep up the good work!</p>
+            )}
+          </Card>
+        </div>
+
+        {/* 학습 권장사항 */}
+        <Card className="bg-indigo-50 border-indigo-200">
+          <h3 className="font-bold text-lg text-indigo-800 mb-4">Recommended Actions</h3>
+          <ul className="space-y-2 text-sm text-gray-700">
+            {weaknesses.slice(0, 2).map(({ module, attempts }) => (
+              <li key={module} className="flex items-start gap-2">
+                <Lightbulb size={16} className="text-indigo-600 mt-0.5 flex-shrink-0" />
+                <span>
+                  {attempts === 0 
+                    ? `Start practicing ${module} to build a strong foundation.`
+                    : `Focus more on ${module} - aim for at least 5 more practice sessions this week.`
+                  }
+                </span>
+              </li>
+            ))}
+            {avgScore < 70 && (
+              <li className="flex items-start gap-2">
+                <Lightbulb size={16} className="text-indigo-600 mt-0.5 flex-shrink-0" />
+                <span>Try to maintain consistent daily practice for better results.</span>
+              </li>
+            )}
+            {totalActivities < 10 && (
+              <li className="flex items-start gap-2">
+                <Lightbulb size={16} className="text-indigo-600 mt-0.5 flex-shrink-0" />
+                <span>Complete at least 10 activities to get a comprehensive analysis.</span>
+              </li>
+            )}
+          </ul>
+        </Card>
+      </div>
+    );
+  }
+
   if (detailView) {
     return <StatsDetailView logs={logs} userData={userData} onBack={() => setDetailView(false)} />;
   }
@@ -2036,7 +2475,7 @@ const MyPage = ({ userData, user }) => {
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Nickname</label>
                 <input type="text" value={editData.nickname} onChange={(e) => setEditData({...editData, nickname: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
-              </div>w
+              </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Email</label>
                 <input type="email" value={editData.email} onChange={(e) => setEditData({...editData, email: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
@@ -2048,7 +2487,7 @@ const MyPage = ({ userData, user }) => {
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Grade</label>
                 <select value={editData.grade} onChange={(e) => setEditData({...editData, grade: parseInt(e.target.value)})} className="w-full p-2 border rounded-lg text-sm">
-                  {[7,8,9,10,11,12].map(g => <option key={g} value={g}>Grade {g}</option>)}
+                  {[6,7,8,9,10,11,12].map(g => <option key={g} value={g}>Grade {g}</option>)}
                 </select>
               </div>
               <div>
@@ -2075,9 +2514,14 @@ const MyPage = ({ userData, user }) => {
         <Card>
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-bold text-lg flex items-center gap-2"><BarChart3 size={20} /> Statistics</h3>
-            <Button variant="outline" onClick={() => setDetailView(true)} className="text-sm">
-              View Details
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setAnalysisView(true)} className="text-sm">
+                My Analysis
+              </Button>
+              <Button variant="outline" onClick={() => setDetailView(true)} className="text-sm">
+                View Details
+              </Button>
+            </div>
           </div>
           <div className="space-y-4">
             <div>
@@ -2109,7 +2553,7 @@ const MyPage = ({ userData, user }) => {
           <p className="text-gray-500 text-center py-8">No activities yet. Start learning!</p>
         ) : (
           <div className="space-y-2">
-            {logs.map((log) => (
+            {logs.slice(0, 10).map((log) => (
               <div key={log.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <Badge color={log.activity_type === 'Vocabulary' ? 'blue' : log.activity_type === 'Grammar' ? 'green' : log.activity_type === 'Writing' ? 'purple' : 'orange'}>
