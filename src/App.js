@@ -57,14 +57,11 @@ const VOCAB_SETS = {
   ]
 };
 
-// Grammar Data Sets
 const GRAMMAR_SETS = [
   {
     id: 1,
     title: "Subject-Verb Agreement (주어-동사 일치)",
     description: "Match the verb correctly with singular/plural subjects.",
-    minGrade: 6,
-    maxGrade: 8,
     questions: [
       { q: "The list of items _____ on the desk.", options: ["is", "are", "were", "be"], answer: 0, exp: "The subject is 'list' (singular), not 'items'. Therefore, the singular verb 'is' is correct.", expKo: "주어는 'items'가 아니라 'list'(단수)입니다. 따라서 단수 동사 'is'가 맞습니다." },
       { q: "Neither the teacher nor the students _____ happy about the decision.", options: ["was", "were", "is", "has"], answer: 1, exp: "In 'neither A nor B', the verb agrees with B (the closer noun). 'Students' is plural.", expKo: "'neither A nor B' 구문에서 동사는 B(더 가까운 명사)에 일치시킵니다. 'Students'가 복수이므로 'were'가 맞습니다." },
@@ -75,8 +72,6 @@ const GRAMMAR_SETS = [
     id: 2,
     title: "Tenses & Conditionals (시제와 가정법)",
     description: "Master the timeline of actions and hypothetical situations.",
-    minGrade: 7,
-    maxGrade: 10,
     questions: [
       { q: "By the time we arrive, the movie _____.", options: ["will start", "will have started", "started", "starts"], answer: 1, exp: "Future Perfect tense is used for an action that will be completed before a specific time in the future.", expKo: "미래완료 시제는 미래의 특정 시점 이전에 완료될 동작에 사용됩니다. (도착할 때쯤이면 이미 시작했을 것이다)" },
       { q: "If I _____ you, I would accept the offer.", options: ["was", "am", "were", "have been"], answer: 2, exp: "In the subjunctive mood (hypothetical situations), 'were' is used for all subjects.", expKo: "가정법 과거(현재의 반대 상황 가정)에서는 주어에 상관없이 be동사로 'were'를 사용합니다." },
@@ -87,8 +82,6 @@ const GRAMMAR_SETS = [
     id: 3,
     title: "Prepositions & Articles (전치사와 관사)",
     description: "Tricky small words that change meaning.",
-    minGrade: 7,
-    maxGrade: 9,
     questions: [
       { q: "He is accused _____ stealing the money.", options: ["for", "with", "of", "on"], answer: 2, exp: "The correct collocation is 'accused of'.", expKo: "'~로 고소당하다/비난받다'는 숙어적으로 'accused of'를 사용합니다." },
       { q: "I prefer coffee _____ tea.", options: ["than", "to", "from", "over"], answer: 1, exp: "With the verb 'prefer', we use 'to' for comparison, not 'than'.", expKo: "'prefer' 동사를 사용하여 비교할 때는 'than' 대신 'to'를 사용합니다 (prefer A to B)." },
@@ -99,8 +92,6 @@ const GRAMMAR_SETS = [
     id: 4,
     title: "Participles & Passive Voice (분사와 수동태)",
     description: "Active vs Passive and -ing/-ed adjectives.",
-    minGrade: 8,
-    maxGrade: 12,
     questions: [
       { q: "The book was _____ by a famous author.", options: ["wrote", "written", "writing", "write"], answer: 1, exp: "Passive voice requires 'be verb + past participle (V3)'.", expKo: "수동태는 'be동사 + 과거분사(p.p)' 형태를 취합니다." },
       { q: "I was _____ by the news.", options: ["shocking", "shocked", "shock", "shocks"], answer: 1, exp: "Use -ed adjectives to describe feelings. -ing adjectives describe the cause.", expKo: "감정을 느낄 때는 -ed 형태(과거분사)를 사용합니다. (뉴스가 충격적인 것(shocking)이고, 나는 충격을 받은 것(shocked))" },
@@ -111,8 +102,6 @@ const GRAMMAR_SETS = [
     id: 5,
     title: "Relative Clauses & Conjunctions (관계사와 접속사)",
     description: "Connecting ideas logically.",
-    minGrade: 9,
-    maxGrade: 12,
     questions: [
       { q: "This is the house _____ I was born.", options: ["which", "that", "where", "when"], answer: 2, exp: "'Where' is a relative adverb used for places.", expKo: "장소를 수식하는 관계부사는 'where'입니다. (which를 쓰려면 in which가 되어야 함)" },
       { q: "_____ it rained, we played soccer.", options: ["Despite", "Although", "Because", "However"], answer: 1, exp: "'Although' is a conjunction followed by a clause (S+V). 'Despite' requires a noun phrase.", expKo: "'Although'는 접속사로 뒤에 절(주어+동사)이 옵니다. 'Despite'는 전치사로 뒤에 명사가 옵니다." },
@@ -530,7 +519,7 @@ const LandingPage = ({ setView, user, setUserData }) => {
       <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl overflow-hidden">
         <div className="p-8 text-center bg-indigo-600 text-white">
           <div className="flex justify-center mb-4"><GraduationCap size={48} /></div>
-          <h1 className="text-3xl font-bold mb-2">True Review</h1>
+          <h1 className="text-3xl font-bold mb-2">Truth Review</h1>
           <p className="text-indigo-200 font-light tracking-widest uppercase">Valosoreum</p>
         </div>
         <form onSubmit={handleLogin} className="p-8 space-y-6">
@@ -564,7 +553,7 @@ const LandingPage = ({ setView, user, setUserData }) => {
                   <span className="text-sm text-gray-700">
                     I agree to the{' '}
                     <button 
-                      type="button"
+                      type="bFtutton"
                       onClick={(e) => { e.preventDefault(); setShowDisclaimer(true); }}
                       className="text-indigo-600 hover:underline font-medium"
                     >
@@ -602,12 +591,12 @@ const DisclaimerModal = ({ isOpen, onClose, onAgree }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl max-w-3xl max-h-[80vh] overflow-y-auto p-6">
-        <h2 className="text-2xl font-bold mb-4">True Review 서비스 AI 활용 및 저작권 고지</h2>
+        <h2 className="text-2xl font-bold mb-4">Truth Review 서비스 AI 활용 및 저작권 고지</h2>
         
         <div className="space-y-4 text-sm text-gray-700">
           <section>
             <h3 className="font-bold text-lg mb-2">1) AI 생성 콘텐츠의 범위</h3>
-            <p className="mb-2">본 True Review(Valosoreum) 웹사이트에서 제공되는 다음 학습 콘텐츠 및 피드백 기능은 인공지능(AI) 모델을 활용하여 생성 및 제공됩니다.</p>
+            <p className="mb-2">본 Truth Review(Valosoreum) 웹사이트에서 제공되는 다음 학습 콘텐츠 및 피드백 기능은 인공지능(AI) 모델을 활용하여 생성 및 제공됩니다.</p>
             <ul className="list-disc list-inside ml-4 space-y-1">
               <li>Vocabulary/Grammar: 자동 문제 생성 및 해설</li>
               <li>Reading: 독해 지문, 문제 구성, 해설 및 전체 해석</li>
@@ -633,7 +622,6 @@ const DisclaimerModal = ({ isOpen, onClose, onAgree }) => {
           <section>
             <h3 className="font-bold text-lg mb-2">4) 데이터 활용 및 개인정보</h3>
             <p className="mb-2">학생이 제출한 글쓰기 및 학습 기록 데이터는 오직 서비스 개선, 맞춤형 학습 분석(My Page 분석 및 Action Plan 등), 그리고 AI 모델의 성능 향상 목적으로만 활용됩니다.</p>
-            <p className="text-gray-500 text-xs">개인정보 보호에 관한 자세한 사항은 개인정보 처리방침을 참조하시기 바랍니다.</p>
           </section>
         </div>
 
@@ -824,7 +812,7 @@ const Sidebar = ({ view, setView, userData, setUser, setUserData }) => {
   return (
     <div className="w-full md:w-64 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
       <div className="p-6 border-b border-gray-100 cursor-pointer hover:bg-indigo-50 transition-colors" onClick={() => setView('learninghub')}>
-        <h2 className="font-bold text-xl text-indigo-900">True Review</h2>
+        <h2 className="font-bold text-xl text-indigo-900">Truth Review</h2>
         <p className="text-xs text-indigo-500 tracking-wider">VALOSOREUM</p>
         <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
           <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold uppercase">{userData?.nickname ? userData.nickname.charAt(0) : 'U'}</div>
@@ -854,7 +842,6 @@ const LearningHub = ({ setView, userData }) => (
     <div className="relative h-96 bg-gradient-to-br from-gray-400 to-gray-600 rounded-xl overflow-hidden bg-cover bg-center" style={{backgroundImage: 'url(/main.png)'}}>      <div className="absolute inset-0 flex flex-col justify-end p-8 text-white">
         <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded w-fit mb-4">FEATURED STORY</span>
         <h2 className="text-4xl font-bold mb-2">Prove Your Value Through Courage</h2>
-        <p className="text-lg text-gray-200">Ignore the noise. Focus on the truth. Your dreams are waiting.</p>
       </div>
     </div>
 
@@ -877,6 +864,32 @@ const LearningHub = ({ setView, userData }) => (
           <p className="text-sm text-gray-600 leading-relaxed">{card.desc}</p>
         </button>
       ))}
+    </div>
+
+    {/* Robinson Review Banner */}
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <a 
+        href="https://www.robinsonreview.org" 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="flex items-center gap-8 p-8 hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex-[4]">
+          <img 
+            src="/robins.png" 
+            alt="The Robinson Review" 
+            className="w-full h-auto object-contain"
+          />
+        </div>
+        <div className="flex-[6]">
+          <p className="text-gray-700 text-4xl leading-relaxed">
+            <span className="font-bold">"The Robinson Review</span>, founded by Yechan Kim in 2022, 
+            connects aspiring student journalists to a global audience. 
+            Visit our website to explore a wide range of articles and 
+            gain diverse insights across various fields."
+          </p>
+        </div>
+      </a>
     </div>
     </div>
 );
@@ -1856,15 +1869,9 @@ const GrammarModule = ({ logActivity, user }) => {
     fetchUserGrade();
   }, [user]);
 
-  // 학년에 맞는 Grammar Sets 필터링
+  // 모든 Grammar Sets 반환
   const getAvailableSets = () => {
-    if (!userGrade) return [];
-    return GRAMMAR_SETS.filter(set => 
-      userGrade >= set.minGrade && userGrade <= set.maxGrade
-    ).map((set, index) => ({
-      ...set,
-      displayId: index + 1 // 화면에 표시될 번호
-    }));
+    return GRAMMAR_SETS;
   };
 
   const generateGrammarQuestions = async (set) => {
@@ -1885,7 +1892,12 @@ const GrammarModule = ({ logActivity, user }) => {
             role: 'user',
             content: `Create 3 COMPLETELY NEW and UNIQUE grammar questions for Grade ${grade} international school students on the topic: "${set.title}".
 
-IMPORTANT: Generate questions that are DIFFERENT from typical textbook examples. Use diverse sentence structures, various contexts, and creative scenarios. Avoid repetitive patterns or common examples.
+CRITICAL: Adjust difficulty based on grade level:
+- Grades 6-7: Use simple, everyday contexts with clear patterns
+- Grades 8-9: Use moderate complexity with academic contexts
+- Grades 10-12: Use complex sentences with nuanced grammar rules and advanced vocabulary
+
+IMPORTANT: Generate questions that are DIFFERENT from typical textbook examples. Use diverse sentence structures, various contexts, and creative scenarios appropriate for Grade ${grade}.
 
 Topic Description: ${set.description}
 
@@ -1900,7 +1912,7 @@ Return ONLY a JSON array with this format:
   }
 ]
 
-Make questions appropriate for Grade ${grade} level with varied difficulty.`
+Make sure the vocabulary, sentence complexity, and grammar nuances match Grade ${grade} level.`
           }],
           temperature: 1.0
         })
@@ -1978,7 +1990,7 @@ Make questions appropriate for Grade ${grade} level with varied difficulty.`
               className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-indigo-500 transition-all text-left group"
             >
               <div className="flex justify-between items-center mb-2">
-                <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full">Set {set.displayId}</span>
+                <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full">Set {set.id}</span>
                 <ChevronRight className="text-gray-300 group-hover:text-indigo-500 transition-colors" size={20} />
               </div>
               <h3 className="text-lg font-bold text-gray-800 mb-1">{set.title}</h3>
