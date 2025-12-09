@@ -882,7 +882,7 @@ const LearningHub = ({ setView, userData }) => (
           />
         </div>
         <div className="w-full md:flex-[6]">
-          <p className="text-gray-700 text-sm md:text-4xl leading-relaxed">
+          <p className="text-gray-700 text-sm md:text-5xl leading-relaxed">
             <span className="font-bold">"The Robinson Review</span>, founded by Yechan Kim in 2022, 
             connects aspiring student journalists to a global audience. 
             Visit our website to explore a wide range of articles and 
