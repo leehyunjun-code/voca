@@ -1375,13 +1375,22 @@ STUDENT'S WRITING:
 "${input}"
 
 CRITICAL INSTRUCTIONS:
-1. KEYWORD MATCHING RULES (VERY IMPORTANT):
-   - Convert both the student's text AND all required keywords to LOWERCASE before checking
-   - Remove all punctuation (commas, periods, etc.) from the student's text
-   - A keyword is "used" if it appears ANYWHERE in the student's text (case-insensitive)
-   - Example: If required word is "City", then "city", "City", "CITY" all count as used
-   - Example: If student wrote "city, adventurous", both "city" and "adventurous" should be marked as used
-   - Check each keyword independently by searching: does the lowercase student text contain the lowercase keyword?
+1. KEYWORD MATCHING RULES (ABSOLUTELY CRITICAL - READ CAREFULLY):
+   Step-by-step keyword matching process:
+   a) Take the student's ENTIRE text: "${input}"
+   b) Convert it to lowercase: "${input.toLowerCase()}"
+   c) For each required keyword, convert keyword to lowercase
+   d) Check if lowercase_student_text.includes(lowercase_keyword)
+   e) If YES → mark as "used", if NO → mark as "missing"
+   
+   EXAMPLES:
+   - Required: "coffee" | Student wrote: "coffeE" → MATCH (coffee = coffee) ✓
+   - Required: "coffee" | Student wrote: "COFFEE" → MATCH (coffee = coffee) ✓
+   - Required: "friends" | Student wrote: "Friends" → MATCH (friends = friends) ✓
+   - Required: "cozy" | Student wrote: "Cozy" → MATCH (cozy = cozy) ✓
+   
+   DO NOT consider spelling errors in this check - only check if the word appears (case-insensitive).
+   Punctuation should be ignored: "cozy," "cozy." "cozy!" all contain "cozy".
 2. Evaluate grammar, vocabulary, and structure appropriate for Grade ${userGrade} ${level} level
 3. Analyze the logical structure: Claim-Reason-Conclusion (주장-근거-마무리)
 4. Assess whether the argument is well-supported with strong evidence
