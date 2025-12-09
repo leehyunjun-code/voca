@@ -872,17 +872,17 @@ const LearningHub = ({ setView, userData }) => (
         href="https://www.robinsonreview.org" 
         target="_blank" 
         rel="noopener noreferrer"
-        className="flex items-center gap-8 p-8 hover:bg-gray-50 transition-colors"
+        className="flex flex-col md:flex-row items-center gap-4 md:gap-8 p-4 md:p-8 hover:bg-gray-50 transition-colors"
       >
-        <div className="flex-[4]">
+        <div className="w-full md:flex-[4]">
           <img 
             src="/robins.png" 
             alt="The Robinson Review" 
             className="w-full h-auto object-contain"
           />
         </div>
-        <div className="flex-[6]">
-          <p className="text-gray-700 text-4xl leading-relaxed">
+        <div className="w-full md:flex-[6]">
+          <p className="text-gray-700 text-sm md:text-4xl leading-relaxed">
             <span className="font-bold">"The Robinson Review</span>, founded by Yechan Kim in 2022, 
             connects aspiring student journalists to a global audience. 
             Visit our website to explore a wide range of articles and 
