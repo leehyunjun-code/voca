@@ -697,7 +697,13 @@ const Onboarding = ({ setView, user, setUserData }) => {
               <label className="block text-sm font-medium mb-2">Grade Level</label>
               <select className="w-full p-2 border rounded-lg" value={grade} onChange={e => setGrade(e.target.value)}>
                 <option value="">Select Grade</option>
-                {[6,7,8,9,10,11,12].map(g => <option key={g} value={g}>Grade {g}</option>)}
+                <option value="6">Grade 6 (초6)</option>
+                <option value="7">Grade 7 (중1)</option>
+                <option value="8">Grade 8 (중2)</option>
+                <option value="9">Grade 9 (중3)</option>
+                <option value="10">Grade 10 (고1)</option>
+                <option value="11">Grade 11 (고2)</option>
+                <option value="12">Grade 12 (고3)</option>
               </select>
             </div>
             <div>
@@ -2517,7 +2523,13 @@ const MyPage = ({ userData, user }) => {
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Grade</label>
                 <select value={editData.grade} onChange={(e) => setEditData({...editData, grade: parseInt(e.target.value)})} className="w-full p-2 border rounded-lg text-sm">
-                  {[6,7,8,9,10,11,12].map(g => <option key={g} value={g}>Grade {g}</option>)}
+                  <option value="6">Grade 6 (초6)</option>
+                  <option value="7">Grade 7 (중1)</option>
+                  <option value="8">Grade 8 (중2)</option>
+                  <option value="9">Grade 9 (중3)</option>
+                  <option value="10">Grade 10 (고1)</option>
+                  <option value="11">Grade 11 (고2)</option>
+                  <option value="12">Grade 12 (고3)</option>
                 </select>
               </div>
               <div>
