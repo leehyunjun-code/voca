@@ -349,27 +349,77 @@ function App() {
   }, [user]);
 
   // Global Logging Function
-  const logActivity = async (type, details, durationSeconds = 0, score = 0) => {
-    if (!user) return;
+  const logActivity = async (type, details, durationSeconds = 0, score = 0, extraDetails = {}) => {
+    if (!user) return null;
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('activity_logs')
         .insert({
           user_id: user.id,
           activity_type: type,
           module: type,
-          details: { description: details },
+          details: { description: details, ...extraDetails },
           duration_seconds: Math.round(durationSeconds),
           score: score,
           created_at: new Date().toISOString()
-        });
+        })
+        .select()
+        .single();
       
       if (error) {
         console.error("Activity log error:", error);
-        return;
+        return null;
       }
       
       if (score > 0) {
+        const { data: userData, error: fetchError } = await supabase
+          .from('users')
+          .select('points')
+          .eq('id', user.id)
+          .maybeSingle();
+        
+        if (fetchError) {
+          console.error("Points fetch error:", fetchError);
+          return data.id;
+        }
+        
+        const newPoints = (userData?.points || 0) + score;
+        
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({ points: newPoints })
+          .eq('id', user.id);
+        
+        if (updateError) {
+          console.error("Points update error:", updateError);
+          return data.id;
+        }
+        
+        setUserData(prev => ({ ...prev, points: newPoints }));
+      }
+      
+      return data.id;
+    } catch (error) {
+      console.error("Logging failed:", error);
+      return null;
+    }
+  };
+
+  const updateActivity = async (activityId, updates) => {
+    if (!activityId) return;
+    try {
+      const { error } = await supabase
+        .from('activity_logs')
+        .update(updates)
+        .eq('id', activityId);
+      
+      if (error) {
+        console.error("Activity update error:", error);
+        return;
+      }
+      
+      // 점수 업데이트가 있으면 user points도 업데이트
+      if (updates.score && updates.score > 0) {
         const { data, error: fetchError } = await supabase
           .from('users')
           .select('points')
@@ -381,7 +431,7 @@ function App() {
           return;
         }
         
-        const newPoints = (data?.points || 0) + score;
+        const newPoints = (data?.points || 0) + updates.score;
         
         const { error: updateError } = await supabase
           .from('users')
@@ -396,7 +446,75 @@ function App() {
         setUserData(prev => ({ ...prev, points: newPoints }));
       }
     } catch (error) {
-      console.error("Logging failed:", error);
+      console.error("Update failed:", error);
+    }
+  };
+
+  const calculateGritScore = async (userId) => {
+    if (!userId) return 0;
+    
+    try {
+      const { data: logs, error } = await supabase
+        .from('activity_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true });
+      
+      if (error || !logs || logs.length === 0) return 0;
+      
+      // 1) 연속 공부 일수 (30%)
+      const studyDates = [...new Set(logs.map(log => 
+        new Date(log.created_at).toISOString().split('T')[0]
+      ))].sort();
+      
+      let maxStreak = 0;
+      let currentStreak = 1;
+      
+      for (let i = 1; i < studyDates.length; i++) {
+        const prevDate = new Date(studyDates[i-1]);
+        const currDate = new Date(studyDates[i]);
+        const diffDays = Math.round((currDate - prevDate) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 1) {
+          currentStreak++;
+        } else {
+          maxStreak = Math.max(maxStreak, currentStreak);
+          currentStreak = 1;
+        }
+      }
+      maxStreak = Math.max(maxStreak, currentStreak);
+      
+      const streakScore = Math.max(0, maxStreak - 2); // 3일=1점, 4일=2점...
+      const streakPercent = Math.min((streakScore / 28) * 30, 30); // 30점 만점
+      
+      // 2) Different Problems 클릭 횟수 (40%)
+      const differentProblemsCount = logs.filter(log => 
+        log.details?.action === 'different_problems'
+      ).length;
+      
+      const differentPercent = Math.min((differentProblemsCount / 10) * 40, 40); // 40점 만점
+      
+      // 3) 완료율 (30%)
+      const startedCount = logs.filter(log => log.details?.status === 'started').length;
+      const completedCount = logs.filter(log => log.details?.status === 'completed').length;
+      
+      const completionRate = startedCount > 0 ? (completedCount / startedCount) : 0;
+      const completionPercent = completionRate * 30; // 30점 만점
+      
+      // 총점
+      const totalScore = Math.round(streakPercent + differentPercent + completionPercent);
+      
+      return {
+        total: totalScore,
+        breakdown: {
+          streak: { days: maxStreak, score: Math.round(streakPercent) },
+          different: { count: differentProblemsCount, score: Math.round(differentPercent) },
+          completion: { rate: Math.round(completionRate * 100), score: Math.round(completionPercent) }
+        }
+      };
+    } catch (error) {
+      console.error("Grit score calculation failed:", error);
+      return 0;
     }
   };
 
@@ -415,10 +533,10 @@ function App() {
               <div className="flex flex-col md:flex-row min-h-screen">
                   <Sidebar view={view} setView={setView} userData={userData} setUser={setUser} setUserData={setUserData} />                <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen bg-slate-50">
                   {view === 'learninghub' && <LearningHub setView={setView} userData={userData} />}
-                  {view === 'vocab' && <VocabModule logActivity={logActivity} user={user} />}
-                  {view === 'writing' && <WritingModule logActivity={logActivity} user={user} />}
-                  {view === 'reading' && <ReadingModule logActivity={logActivity} user={user} />}
-                  {view === 'grammar' && <GrammarModule logActivity={logActivity} user={user} />}
+                  {view === 'vocab' && <VocabModule logActivity={logActivity} updateActivity={updateActivity} user={user} />}
+                  {view === 'writing' && <WritingModule logActivity={logActivity} updateActivity={updateActivity} user={user} />}
+                  {view === 'reading' && <ReadingModule logActivity={logActivity} updateActivity={updateActivity} user={user} />}
+                  {view === 'grammar' && <GrammarModule logActivity={logActivity} updateActivity={updateActivity} user={user} />}
                   {view === 'mypage' && <MyPage userData={userData} user={user} />}
                 </main>
               </div>
@@ -888,7 +1006,7 @@ const LearningHub = ({ setView, userData }) => (
           />
         </div>
         <div className="w-full md:flex-[6]">
-          <p className="text-gray-700 text-sm md:text-5xl leading-relaxed">
+          <p className="text-gray-700 text-sm md:text-4xl leading-relaxed">
             <span className="font-bold">"The Robinson Review</span>, founded by Yechan Kim in 2022, 
             connects aspiring student journalists to a global audience. 
             Visit our website to explore a wide range of articles and 
@@ -901,7 +1019,7 @@ const LearningHub = ({ setView, userData }) => (
 );
 
 // --- Module: Vocabulary ---
-const VocabModule = ({ logActivity, user }) => {
+const VocabModule = ({ logActivity, updateActivity, user }) => {
   const [mode, setMode] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
@@ -915,6 +1033,7 @@ const VocabModule = ({ logActivity, user }) => {
   const [loading, setLoading] = useState(false);
   const [userGrade, setUserGrade] = useState(null);
   const startTime = useRef(Date.now());
+  const [activityId, setActivityId] = useState(null);
 
   // 사용자 Grade 가져오기
   useEffect(() => {
@@ -932,10 +1051,11 @@ const VocabModule = ({ logActivity, user }) => {
 
   // GPT API로 단어 생성
   const generateVocab = async (type) => {
-    setLoading(true);
-    try {
-      const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
-      const grade = userGrade || 9;
+  setLoading(true);
+  const grade = userGrade || 9;  // ← 이 줄을 여기로 이동!
+  
+  try {
+    const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
       
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -947,13 +1067,18 @@ const VocabModule = ({ logActivity, user }) => {
           model: 'gpt-4o-mini',
           messages: [{
             role: 'user',
-            content: `Generate 5 COMPLETELY NEW and DIFFERENT ${type} vocabulary words appropriate for Grade ${grade} international school students. 
+            content: `Generate 5 ${type} vocabulary words appropriate for Grade ${grade} international school students. 
 
-IMPORTANT: Create words that are UNIQUE and NOT commonly used in typical ${type} lists. Avoid repetitive or similar words from previous generations. Use diverse and uncommon vocabulary.
+CRITICAL REQUIREMENTS:
+1. Use words from official ${type} word lists and past exam questions
+2. Select words from reputable dictionaries (Merriam-Webster, Oxford, Cambridge)
+3. For ${type === 'TOEFL' ? 'TOEFL iBT' : 'SAT'}, use words that have actually appeared in past tests
+4. Prioritize high-frequency ${type} vocabulary that students need to know
+5. Ensure words are appropriate for Grade ${grade} level
 
 For each word, provide:
-1. The word (must be diverse and uncommon)
-2. Korean meaning
+1. The word (must be from official ${type} materials or established dictionaries)
+2. Korean meaning (accurate translation)
 3. 3 incorrect Korean meanings (plausible distractors)
 
 Return ONLY a JSON array with this exact format:
@@ -978,11 +1103,25 @@ Make sure the correct meaning is always included in the options array.`
       
       setVocabSet(vocabData);
       setLoading(false);
+      
+      // Started 로그 생성
+      const id = await logActivity('Vocabulary', `${type} - Grade ${grade}`, 0, 0, {
+        vocabType: type,
+        status: 'started'
+      });
+      setActivityId(id);
     } catch (error) {
       console.error("GPT API Error:", error);
       alert("Failed to generate vocabulary. Using default set.");
       setVocabSet(VOCAB_SETS[type]);
       setLoading(false);
+      
+      // Started 로그 생성 (기본 set 사용)
+      const id = await logActivity('Vocabulary', `${type} - Grade ${grade}`, 0, 0, {
+        vocabType: type,
+        status: 'started'
+      });
+      setActivityId(id);
     }
   };
 
@@ -1053,10 +1192,31 @@ Make sure the correct meaning is always included in the options array.`
     }, 2000);
   };
 
-  const finishGame = () => {
+  const finishGame = async () => {
     const duration = (Date.now() - startTime.current) / 1000;
     setShowResult(true);
-    logActivity('Vocabulary', `${mode} - ${totalAnswered} words (Grade ${userGrade})`, duration, score);
+    
+    const wordResults = wrongWords.map(w => ({ word: w.word, correct: false }));
+    const correctWords = vocabSet.slice(0, totalAnswered).filter(word => 
+      !wrongWords.find(w => w.word === word.word)
+    ).map(w => ({ word: w.word, correct: true }));
+    
+    // Update started log to completed
+    if (activityId) {
+      await updateActivity(activityId, {
+        status: 'completed',
+        score: score,
+        duration_seconds: Math.round(duration),
+        details: {
+          description: `${mode} - ${totalAnswered} words (Grade ${userGrade})`,
+          vocabType: mode,
+          words: [...correctWords, ...wordResults],
+          correctCount: totalAnswered - wrongWords.length,
+          totalCount: totalAnswered,
+          status: 'completed'
+        }
+      });
+    }
   };
 
   const resetGame = () => {
@@ -1135,22 +1295,29 @@ Make sure the correct meaning is always included in the options array.`
 
   if (showResult) return (
     <Card className="text-center max-w-md mx-auto mt-10">
-      <Trophy size={48} className="mx-auto text-yellow-500 mb-4" />
-      <h3 className="text-2xl font-bold mb-2">Battle Complete!</h3>
-      <p className="text-gray-600 mb-2">Grade {userGrade} - {mode}</p>
-      <p className="text-gray-600 mb-2">You answered <span className="font-bold text-indigo-600">{totalAnswered} words</span></p>
-      <p className="text-gray-600 mb-6">Final Score: <span className="font-bold text-indigo-600">{score} points</span></p>
-      <div className="flex gap-4 justify-center">
-        <Button onClick={() => {
-          setShowResult(false);
-          setScore(0);
-          setHearts(5);
-          setCurrentQuestion(0);
-          setTotalAnswered(0);
-          setWrongWords([]);
-          startTime.current = Date.now();
-          generateVocab(mode);
-        }}>Different Problems</Button>
+        <Trophy size={48} className="mx-auto text-yellow-500 mb-4" />
+        <h3 className="text-2xl font-bold mb-2">Battle Complete!</h3>
+        <p className="text-gray-600 mb-2">Grade {userGrade} - {mode}</p>
+        <p className="text-gray-600 mb-2">You answered <span className="font-bold text-indigo-600">{totalAnswered} words</span></p>
+        <p className="text-gray-600 mb-6">Final Score: <span className="font-bold text-indigo-600">{score} points</span></p>
+        <div className="flex gap-4 justify-center">
+          <Button onClick={async () => {
+            // Different Problems 클릭 로그
+            await logActivity('Vocabulary', 'Different Problems clicked', 0, 0, {
+              action: 'different_problems',
+              previousType: mode,
+              previousGrade: userGrade
+            });
+            
+            setShowResult(false);
+            setScore(0);
+            setHearts(5);
+            setCurrentQuestion(0);
+            setTotalAnswered(0);
+            setWrongWords([]);
+            startTime.current = Date.now();
+            generateVocab(mode);
+          }}>Different Problems</Button>
         {wrongWords.length > 0 && (
           <Button variant="secondary" onClick={() => setShowReview(true)}>Review Wrong Words ({wrongWords.length})</Button>
         )}
@@ -1239,7 +1406,7 @@ Make sure the correct meaning is always included in the options array.`
 };
 
 // --- Module: Writing ---
-const WritingModule = ({ logActivity, user }) => {
+const WritingModule = ({ logActivity, updateActivity, user }) => {
   const [level, setLevel] = useState(null);
   const [input, setInput] = useState('');
   const [feedback, setFeedback] = useState(null);
@@ -1247,6 +1414,7 @@ const WritingModule = ({ logActivity, user }) => {
   const [userGrade, setUserGrade] = useState(null);
   const [currentTopic, setCurrentTopic] = useState(null);
   const startTime = useRef(Date.now());
+  const [activityId, setActivityId] = useState(null);
 
   // 사용자 Grade 가져오기
   useEffect(() => {
@@ -1304,7 +1472,9 @@ Return ONLY a JSON object with this format:
   "context": "background context (only for Advanced level, otherwise null)"
 }
 
-CRITICAL: "keywords" array must contain ONLY English words, NO Korean translations, NO parentheses. Example: ["beautiful", "dreams", "magic"] NOT ["beautiful (아름다운)", "dreams (꿈)"]
+CRITICAL: 
+- "keywords" array must contain ONLY English words, NO Korean translations, NO parentheses. Example: ["beautiful", "dreams", "magic"] NOT ["beautiful (아름다운)", "dreams (꿈)"]
+- These keywords are RECOMMENDED vocabulary to help students, NOT required. Students can write without using them.
 
 Make sure the difficulty matches Grade ${grade} ${selectedLevel} level with varied topics.`
           }],
@@ -1319,6 +1489,15 @@ Make sure the difficulty matches Grade ${grade} ${selectedLevel} level with vari
       
       setCurrentTopic(topicData);
       setLoading(false);
+      
+      // Started 로그 생성
+      const id = await logActivity('Writing', `${selectedLevel} - Grade ${userGrade || 9}`, 0, 0, {
+        level: selectedLevel,
+        topic: topicData.prompt,
+        keywords: topicData.keywords || [],
+        status: 'started'
+      });
+      setActivityId(id);
     } catch (error) {
       console.error("GPT API Error:", error);
       alert("Failed to generate topic. Please try again.");
@@ -1375,35 +1554,34 @@ Make sure the difficulty matches Grade ${grade} ${selectedLevel} level with vari
             content: `You are an English writing tutor for Grade ${userGrade} international school students at ${level} level.
 
 TASK: "${topic.prompt}"
-REQUIRED HELPER WORDS: ${topic.keywords.join(', ')}
+RECOMMENDED HELPER WORDS: ${topic.keywords.join(', ')}
 
 STUDENT'S WRITING:
 "${input}"
 
 CRITICAL INSTRUCTIONS:
-1. KEYWORD MATCHING RULES (ABSOLUTELY CRITICAL - READ CAREFULLY):
-   Step-by-step keyword matching process:
+1. KEYWORD TRACKING (for feedback only, NOT for scoring):
+   Step-by-step keyword tracking process:
    a) Take the student's ENTIRE text: "${input}"
    b) Convert it to lowercase: "${input.toLowerCase()}"
-   c) For each required keyword, convert keyword to lowercase
+   c) For each recommended keyword, convert keyword to lowercase
    d) Check if lowercase_student_text.includes(lowercase_keyword)
-   e) If YES → mark as "used", if NO → mark as "missing"
+   e) If YES → mark as "used", if NO → mark as "not used"
    
    EXAMPLES:
-   - Required: "coffee" | Student wrote: "coffeE" → MATCH (coffee = coffee) ✓
-   - Required: "coffee" | Student wrote: "COFFEE" → MATCH (coffee = coffee) ✓
-   - Required: "friends" | Student wrote: "Friends" → MATCH (friends = friends) ✓
-   - Required: "cozy" | Student wrote: "Cozy" → MATCH (cozy = cozy) ✓
+   - Recommended: "coffee" | Student wrote: "coffeE" → MATCH (coffee = coffee) ✓
+   - Recommended: "coffee" | Student wrote: "COFFEE" → MATCH (coffee = coffee) ✓
    
-   DO NOT consider spelling errors in this check - only check if the word appears (case-insensitive).
    Punctuation should be ignored: "cozy," "cozy." "cozy!" all contain "cozy".
+   
+   IMPORTANT: These are RECOMMENDED words only. DO NOT deduct points if students don't use them. The score should be based solely on the quality of writing, grammar, vocabulary, and argumentation.
+
 2. Evaluate grammar, vocabulary, and structure appropriate for Grade ${userGrade} ${level} level
 3. Analyze the logical structure: Claim-Reason-Conclusion (주장-근거-마무리)
 4. Assess whether the argument is well-supported with strong evidence
-5. Provide ONE total score out of 100
-6. If helper words are missing, deduct points significantly
-7. **IMPORTANT: For "correctedText", ONLY fix grammar, vocabulary, and sentence structure. DO NOT change the student's main idea or content. Keep the student's original meaning intact.**
-8. Provide specific examples of how to strengthen the argument and address counterarguments
+5. Provide ONE total score out of 100 based on writing quality only (NOT keyword usage)
+6. **IMPORTANT: For "correctedText", ONLY fix grammar, vocabulary, and sentence structure. DO NOT change the student's main idea or content. Keep the student's original meaning intact.**
+7. Provide specific examples of how to strengthen the argument and address counterarguments
 
 RESPOND IN THIS JSON FORMAT ONLY:
 {
@@ -1436,7 +1614,25 @@ NOTE: When checking keywords, ignore case differences. "Beautiful", "beautiful",
       
       const duration = (Date.now() - startTime.current) / 1000;
       const earnedPoints = Math.round(result.score / 2);
-      logActivity('Writing', `${level} - Grade ${userGrade}`, duration, earnedPoints);
+      
+      // Update started log to completed
+      if (activityId) {
+        await updateActivity(activityId, {
+          status: 'completed',
+          score: earnedPoints,
+          duration_seconds: Math.round(duration),
+          details: {
+            description: `${level} - Grade ${userGrade}`,
+            level: level,
+            topic: topic.prompt,
+            keywords: topic.keywords || [],
+            usedKeywords: result.usedKeywords || [],
+            missingKeywords: result.missingKeywords || [],
+            writingScore: result.score,
+            status: 'completed'
+          }
+        });
+      }
       
       setLoading(false);
     } catch (error) {
@@ -1486,9 +1682,9 @@ NOTE: When checking keywords, ignore case differences. "Beautiful", "beautiful",
               <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Instruction</h4>
               <p className="text-sm font-medium text-gray-900">{topic.instruction}</p>
               {topic.instructionKo && <p className="text-sm text-indigo-600 mt-1 mb-4">{topic.instructionKo}</p>}
-              <h4 className="text-xs font-bold text-red-500 uppercase mb-2">⚠️ Required Helper Words (필수 사용)</h4>
+              <h4 className="text-xs font-bold text-blue-500 uppercase mb-2">💡 Recommended Helper Words (추천 단어)</h4>
               <div className="flex flex-wrap gap-2">
-                {topic.keywords?.map((k, i) => <span key={i} className="text-xs bg-red-50 text-red-700 px-2 py-1 rounded border border-red-200 font-bold">{k}</span>)}
+                {topic.keywords?.map((k, i) => <span key={i} className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-200 font-medium">{k}</span>)}
               </div>
             </div>
           </Card>
@@ -1521,15 +1717,16 @@ NOTE: When checking keywords, ignore case differences. "Beautiful", "beautiful",
             </div>
             
             {/* Helper Words 체크 */}
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm font-bold text-gray-700 mb-2">Required Words Check:</p>
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+              <p className="text-sm font-bold text-blue-700 mb-2">💡 Recommended Words Usage:</p>
               <div className="flex flex-wrap gap-2">
                 {topic.keywords.map((word, idx) => (
-                  <span key={idx} className={`text-xs px-2 py-1 rounded ${feedback.usedKeywords?.includes(word) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    {feedback.usedKeywords?.includes(word) ? '✓' : '✗'} {word}
+                  <span key={idx} className={`text-xs px-2 py-1 rounded ${feedback.usedKeywords?.includes(word) ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-600 border border-gray-200'}`}>
+                    {feedback.usedKeywords?.includes(word) ? '✓' : '○'} {word}
                   </span>
                 ))}
               </div>
+              <p className="text-xs text-gray-600 mt-2">Note: These are suggestions only and don't affect your score.</p>
             </div>
 
             {/* Before & After */}
@@ -1561,7 +1758,18 @@ NOTE: When checking keywords, ignore case differences. "Beautiful", "beautiful",
               )}
             </div>
           </Card>
-          <Button onClick={() => { setFeedback(null); setInput(''); generateTopic(level); }} className="w-full" variant="secondary">Different Problems</Button>
+          <Button onClick={async () => {
+            // Different Problems 클릭 로그
+            await logActivity('Writing', 'Different Problems clicked', 0, 0, {
+              action: 'different_problems',
+              previousLevel: level,
+              previousGrade: userGrade
+            });
+            
+            setFeedback(null);
+            setInput('');
+            generateTopic(level);
+          }} className="w-full" variant="secondary">Different Problems</Button>
         </div>
       )}
     </div>
@@ -1569,7 +1777,7 @@ NOTE: When checking keywords, ignore case differences. "Beautiful", "beautiful",
 };
 
 // --- Module: Reading ---
-const ReadingModule = ({ logActivity, user }) => {
+const ReadingModule = ({ logActivity, updateActivity, user }) => {
   const [level, setLevel] = useState(null);
   const [topicSelection, setTopicSelection] = useState(false);
   const [category, setCategory] = useState(null);
@@ -1580,6 +1788,7 @@ const ReadingModule = ({ logActivity, user }) => {
   const [loading, setLoading] = useState(false);
   const [currentContent, setCurrentContent] = useState(null);
   const [userGrade, setUserGrade] = useState(null);
+  const [activityId, setActivityId] = useState(null);
 
   const startTime = useRef(Date.now());
 
@@ -1625,6 +1834,13 @@ IMPORTANT: Generate a passage on a FRESH topic that has NOT been covered before.
 Write ${paragraphCount} of academic text appropriate for ${level} level with diverse vocabulary and sentence structures.
 Create ${questionCount} multiple-choice questions that test deep comprehension, not just surface details.
 
+Each question must have a "type" field indicating the question type:
+- "main_idea": Questions about the main point or central theme
+- "detail": Questions about specific facts or information
+- "inference": Questions requiring logical deduction
+- "vocabulary": Questions about word meaning in context
+- "author_purpose": Questions about author's intent or tone
+
 Return ONLY a JSON object:
 {
   "title": "passage title",
@@ -1635,6 +1851,7 @@ Return ONLY a JSON object:
     {
       "q": "question text in English",
       "qKo": "질문의 한글 번역",
+      "type": "main_idea",
       "options": ["option1", "option2", "option3", "option4"],
       "optionsKo": ["선지1 한글", "선지2 한글", "선지3 한글", "선지4 한글"],
       "answer": 0,
@@ -1663,6 +1880,14 @@ Make the content engaging, educational, and DIFFERENT from typical passages for 
       startTime.current = Date.now();
       setUserAnswers({});
       setSubmitted(false);
+      
+      // Started 로그 생성
+      const id = await logActivity('Reading', `${level} - ${category}`, 0, 0, {
+        topic: category,
+        level: level,
+        status: 'started'
+      });
+      setActivityId(id);
     } catch (error) {
       console.error("GPT API Error:", error);
       alert("Failed to generate reading. Please try again.");
@@ -1684,15 +1909,43 @@ Make the content engaging, educational, and DIFFERENT from typical passages for 
     generateReading();
   };
 
-  const finishReading = () => {
+  const finishReading = async () => {
     const content = getContent();
     let correctCount = 0;
-    content.questions.forEach((q, idx) => { if (userAnswers[idx] === q.answer) correctCount++; });
+    const questionResults = [];
+    
+    content.questions.forEach((q, idx) => {
+      const isCorrect = userAnswers[idx] === q.answer;
+      if (isCorrect) correctCount++;
+      questionResults.push({ 
+        type: q.type || 'unknown',
+        correct: isCorrect 
+      });
+    });
+    
     const basePoints = level === 'Advanced' ? 50 : level === 'Standard' ? 30 : 20;
     const finalPoints = Math.round(basePoints * (correctCount / content.questions.length));
     setScore(finalPoints);
     setSubmitted(true);
-    logActivity('Reading', `${level} - ${category}`, (Date.now() - startTime.current)/1000, finalPoints);
+    
+    // Update started log to completed
+    if (activityId) {
+      await updateActivity(activityId, {
+        status: 'completed',
+        score: finalPoints,
+        duration_seconds: Math.round((Date.now() - startTime.current) / 1000),
+        details: {
+          description: `${level} - ${category}`,
+          topic: category,
+          level: level,
+          questions: questionResults,
+          correctCount: correctCount,
+          totalCount: content.questions.length,
+          status: 'completed'
+        }
+      });
+    }
+    
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -1847,7 +2100,14 @@ Make the content engaging, educational, and DIFFERENT from typical passages for 
         ) : (
           <div className="text-center py-8">
              <div className="text-3xl font-bold text-indigo-700 mb-4">Total Score: {score} Points</div>
-             <Button className="mx-auto" onClick={() => {
+             <Button className="mx-auto" onClick={async () => {
+               // Different Problems 클릭 로그
+               await logActivity('Reading', 'Different Problems clicked', 0, 0, {
+                 action: 'different_problems',
+                 previousTopic: category,
+                 previousLevel: level
+               });
+               
                setSubmitted(false);
                setUserAnswers({});
                generateReading();
@@ -1860,7 +2120,7 @@ Make the content engaging, educational, and DIFFERENT from typical passages for 
 };
 
 // --- Module: Grammar ---
-const GrammarModule = ({ logActivity, user }) => {
+const GrammarModule = ({ logActivity, updateActivity, user }) => {
   const [selectedSet, setSelectedSet] = useState(null);
   const [userAnswers, setUserAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
@@ -1868,6 +2128,7 @@ const GrammarModule = ({ logActivity, user }) => {
   const [userGrade, setUserGrade] = useState(null);
   const [loading, setLoading] = useState(true);
   const startTime = useRef(Date.now());
+  const [activityId, setActivityId] = useState(null);
 
   // 사용자 Grade 가져오기
   useEffect(() => {
@@ -1912,14 +2173,22 @@ CRITICAL: Adjust difficulty based on grade level:
 - Grades 8-9: Use moderate complexity with academic contexts
 - Grades 10-12: Use complex sentences with nuanced grammar rules and advanced vocabulary
 
-IMPORTANT: Generate questions that are DIFFERENT from typical textbook examples. Use diverse sentence structures, various contexts, and creative scenarios appropriate for Grade ${grade}.
+IMPORTANT: 
+- Generate questions that are DIFFERENT from typical textbook examples
+- Use diverse sentence structures, various contexts, and creative scenarios
+- **Use DIVERSE VERBS, not just be-verbs (is/are/was/were)**
+- Include action verbs, modal verbs, and various tenses
+- Examples of verbs to use: have/has, do/does, can/could, will/would, make/makes, take/takes, go/goes, etc.
 
 Topic Description: ${set.description}
+
+Each question must have a "grammarPoint" field describing the specific grammar concept being tested.
 
 Return ONLY a JSON array with this format:
 [
   {
     "q": "question text with blank _____ ",
+    "grammarPoint": "specific grammar concept being tested",
     "options": ["option1", "option2", "option3", "option4"],
     "answer": 0,
     "exp": "English explanation why this is correct",
@@ -1944,6 +2213,13 @@ Make sure the vocabulary, sentence complexity, and grammar nuances match Grade $
       setScore(0);
       startTime.current = Date.now();
       setLoading(false);
+      
+      // Started 로그 생성
+      const id = await logActivity('Grammar', `${set.title}`, 0, 0, {
+        grammarTopic: set.title,
+        status: 'started'
+      });
+      setActivityId(id);
     } catch (error) {
       console.error("GPT API Error:", error);
       alert("Failed to generate questions. Using default set.");
@@ -1953,6 +2229,13 @@ Make sure the vocabulary, sentence complexity, and grammar nuances match Grade $
       setScore(0);
       startTime.current = Date.now();
       setLoading(false);
+      
+      // Started 로그 생성 (기본 set 사용)
+      const id = await logActivity('Grammar', `${set.title}`, 0, 0, {
+        grammarTopic: set.title,
+        status: 'started'
+      });
+      setActivityId(id);
     }
   };
 
@@ -1966,19 +2249,42 @@ Make sure the vocabulary, sentence complexity, and grammar nuances match Grade $
     }
   };
 
-  const submitQuiz = () => {
+  const submitQuiz = async () => {
     let correct = 0;
+    const questionResults = [];
+    
     selectedSet.questions.forEach((q, idx) => {
-      if (userAnswers[idx] === q.answer) correct++;
+      const isCorrect = userAnswers[idx] === q.answer;
+      if (isCorrect) correct++;
+      questionResults.push({
+        grammarPoint: q.grammarPoint || 'unknown',
+        correct: isCorrect
+      });
     });
+    
     const totalQ = selectedSet.questions.length;
     const finalScore = Math.round((correct / totalQ) * 100);
     
     setScore(finalScore);
     setSubmitted(true);
     
-    const duration = (Date.now() - startTime.current) / 1000;
-    logActivity('Grammar', `${selectedSet.title}`, duration, finalScore);
+    // Update started log to completed
+    if (activityId) {
+      await updateActivity(activityId, {
+        status: 'completed',
+        score: finalScore,
+        duration_seconds: Math.round((Date.now() - startTime.current) / 1000),
+        details: {
+          description: `${selectedSet.title}`,
+          grammarTopic: selectedSet.title,
+          questions: questionResults,
+          correctCount: correct,
+          totalCount: totalQ,
+          status: 'completed'
+        }
+      });
+    }
+    
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -2099,7 +2405,15 @@ Make sure the vocabulary, sentence complexity, and grammar nuances match Grade $
         </div>
       ) : (
         <div className="mt-8 text-center pb-8">
-          <Button className="mx-auto" variant="outline" onClick={() => generateGrammarQuestions(selectedSet)}>Different Problems</Button>
+          <Button className="mx-auto" variant="outline" onClick={async () => {
+            // Different Problems 클릭 로그
+            await logActivity('Grammar', 'Different Problems clicked', 0, 0, {
+              action: 'different_problems',
+              previousTopic: selectedSet.title
+            });
+            
+            generateGrammarQuestions(selectedSet);
+          }}>Different Problems</Button>
         </div>
       )}
     </div>
