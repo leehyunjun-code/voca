@@ -314,30 +314,8 @@ function App() {
             setUserData(data);
             setView((currentView) => currentView === 'landing' ? 'learninghub' : currentView);
           } else {
-            // user가 users 테이블에 없으면 자동 생성
-            const { error: insertError } = await supabase
-              .from('users')
-              .insert({
-                id: user.id,
-                email: user.email || 'anonymous@temp.com',
-                nickname: 'Student',
-                points: 0
-              });
-            
-            if (insertError) {
-              console.error("Auto user creation error:", insertError);
-            } else {
-              // 다시 fetch
-              const { data: newData } = await supabase
-                .from('users')
-                .select('*')
-                .eq('id', user.id)
-                .maybeSingle();
-              
-              if (newData) {
-                setUserData(newData);
-              }
-            }
+            // users 테이블에 데이터 없으면 onboarding으로
+            setView('onboarding');
           }
         } catch (error) {
           console.error("Profile fetch failed:", error);
@@ -553,26 +531,68 @@ export default App;
 // --- Sub-Components ---
 
 const LandingPage = ({ setView, user, setUserData }) => {
-  const [email, setEmail] = useState('');
   const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const [agreedToDataPolicy, setAgreedToDataPolicy] = useState(false);
+  const [showDataPolicy, setShowDataPolicy] = useState(false);
+  const [nicknameChecked, setNicknameChecked] = useState(false);
+  const [nicknameCheckMessage, setNicknameCheckMessage] = useState('');
 
+
+  const checkNickname = async () => {
+    if (!nickname || nickname.trim().length < 2) {
+      setNicknameCheckMessage('Nickname must be at least 2 characters.');
+      setNicknameChecked(false);
+      return;
+    }
+
+    try {
+      // users 테이블에서 닉네임 중복 체크
+      const { data, error } = await supabase
+        .from('users')
+        .select('nickname')
+        .eq('nickname', nickname.trim())
+        .maybeSingle();
+      
+      if (error) {
+        console.error("Nickname check error:", error);
+        setNicknameCheckMessage('Error checking nickname.');
+        setNicknameChecked(false);
+        return;
+      }
+      
+      if (data) {
+        setNicknameCheckMessage('This nickname is already taken.');
+        setNicknameChecked(false);
+      } else {
+        setNicknameCheckMessage('This nickname is available!');
+        setNicknameChecked(true);
+      }
+    } catch (err) {
+      console.error("Check failed:", err);
+      setNicknameCheckMessage('Error checking nickname.');
+      setNicknameChecked(false);
+    }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!email.includes('@')) return alert("Please enter a valid school email.");
+    if (!nickname || nickname.trim().length < 2) return alert("Please enter a valid nickname (at least 2 characters).");
     if (!password) return alert("Please enter a password.");
-    if (!nickname && !isLogin) return alert("Please enter a nickname for signup.");
+    if (!isLogin && !nicknameChecked) return alert("Please check nickname availability first.");
     if (!agreedToTerms && !isLogin) return alert("You must agree to the Terms of Service and AI Content Disclaimer to continue.");
+    if (!agreedToDataPolicy && !isLogin) return alert("You must agree to the User Data Policy and confirm your age to continue.");
 
     try {
       if (isLogin) {
-        // 로그인
+        // 로그인: 닉네임을 이메일 형식으로 변환
+        const authEmail = `${nickname.trim()}@test.com`;
+        
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-          email,
+          email: authEmail,
           password
         });
         
@@ -592,14 +612,15 @@ const LandingPage = ({ setView, user, setUserData }) => {
           setUserData(userData);
           setView('learninghub');
         } else {
-          // Auth는 있는데 users 테이블에 없으면 onboarding
           setView('onboarding');
         }
         
       } else {
-        // 회원가입
+        // 회원가입: 닉네임@test.com 형식으로 Auth 생성
+        const authEmail = `${nickname.trim()}@test.com`;
+        
         const { data: authData, error: authError } = await supabase.auth.signUp({
-          email,
+          email: authEmail,
           password
         });
         
@@ -613,8 +634,7 @@ const LandingPage = ({ setView, user, setUserData }) => {
           .from('users')
           .insert({
             id: authData.user.id,
-            email,
-            nickname,
+            nickname: nickname.trim(),
             points: 0
           });
         
@@ -642,25 +662,62 @@ const LandingPage = ({ setView, user, setUserData }) => {
         </div>
         <form onSubmit={handleLogin} className="p-8 space-y-6">
           <div className="flex justify-center gap-4 border-b border-gray-100 pb-4">
-            <button type="button" onClick={() => setIsLogin(true)} className={`text-sm font-bold ${isLogin ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400'}`}>LOGIN</button>
-            <button type="button" onClick={() => setIsLogin(false)} className={`text-sm font-bold ${!isLogin ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400'}`}>SIGN UP</button>
+            <button type="button" onClick={() => { setIsLogin(true); setNicknameChecked(false); setNicknameCheckMessage(''); }} className={`text-sm font-bold ${isLogin ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400'}`}>LOGIN</button>
+            <button type="button" onClick={() => { setIsLogin(false); setNicknameChecked(false); setNicknameCheckMessage(''); }} className={`text-sm font-bold ${!isLogin ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400'}`}>SIGN UP</button>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">School Email</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="student@school.edu" />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nickname</label>
+            <div className="flex gap-2">
+              <input 
+                type="text" 
+                value={nickname} 
+                onChange={(e) => { 
+                  setNickname(e.target.value); 
+                  setNicknameChecked(false); 
+                  setNicknameCheckMessage(''); 
+                }} 
+                className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" 
+                placeholder="Your nickname" 
+              />
+              {!isLogin && (
+                <button 
+                  type="button" 
+                  onClick={checkNickname}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium whitespace-nowrap"
+                >
+                  Check
+                </button>
+              )}
+            </div>
+            {!isLogin && nicknameCheckMessage && (
+              <p className={`text-sm mt-1 ${nicknameChecked ? 'text-green-600' : 'text-red-600'}`}>
+                {nicknameCheckMessage}
+              </p>
+            )}
+            {!isLogin && (
+              <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                4~12자의 영문 또는 숫자 조합을 권장합니다. 익명성 유지를 위해 학교 이름이나 본인의 실명이 포함된 아이디는 반드시 피해주세요.
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="********" />
+            {!isLogin && (
+              <div className="mt-2">
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  안전한 비밀번호를 입력해 주세요.
+                </p>
+                <p className="text-xs text-red-600 font-medium mt-1 leading-relaxed">
+                  ⚠️ 중요: 이메일을 수집하지 않으므로 비밀번호 분실 시 찾기가 절대 불가능합니다. 설정하신 비밀번호를 반드시 별도로 메모해 두시기 바랍니다.
+                </p>
+              </div>
+            )}
           </div>
           {!isLogin && (
             <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nickname</label>
-                <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="Your name" />
-              </div>
               
-              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input 
                     type="checkbox" 
@@ -671,7 +728,7 @@ const LandingPage = ({ setView, user, setUserData }) => {
                   <span className="text-sm text-gray-700">
                     I agree to the{' '}
                     <button 
-                      type="bFtutton"
+                      type="button"
                       onClick={(e) => { e.preventDefault(); setShowDisclaimer(true); }}
                       className="text-indigo-600 hover:underline font-medium"
                     >
@@ -680,10 +737,30 @@ const LandingPage = ({ setView, user, setUserData }) => {
                     {' '}(Required)
                   </span>
                 </label>
+                
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={agreedToDataPolicy}
+                    onChange={(e) => setAgreedToDataPolicy(e.target.checked)}
+                    className="mt-1 w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                  />
+                  <span className="text-sm text-gray-700">
+                    I agree to the{' '}
+                    <button 
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); setShowDataPolicy(true); }}
+                      className="text-indigo-600 hover:underline font-medium"
+                    >
+                      User Data Policy and confirm I am 14+ years old
+                    </button>
+                    {' '}(or have parental consent) (Required)
+                  </span>
+                </label>
               </div>
             </>
           )}
-          <Button className="w-full justify-center" disabled={!isLogin && !agreedToTerms}>
+          <Button className="w-full justify-center" disabled={!isLogin && (!agreedToTerms || !agreedToDataPolicy || !nicknameChecked)}>
             {isLogin ? "Enter Class" : "Join Class"}
           </Button>
         </form>
@@ -695,6 +772,15 @@ const LandingPage = ({ setView, user, setUserData }) => {
         onAgree={() => {
           setAgreedToTerms(true);
           setShowDisclaimer(false);
+        }}
+      />
+      
+      <DataPolicyModal 
+        isOpen={showDataPolicy}
+        onClose={() => setShowDataPolicy(false)}
+        onAgree={() => {
+          setAgreedToDataPolicy(true);
+          setShowDataPolicy(false);
         }}
       />
     </div>
@@ -756,11 +842,49 @@ const DisclaimerModal = ({ isOpen, onClose, onAgree }) => {
   );
 };
 
+// --- Data Policy Modal ---
+const DataPolicyModal = ({ isOpen, onClose, onAgree }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-xl max-w-3xl max-h-[80vh] overflow-y-auto p-6">
+        <h2 className="text-2xl font-bold mb-4">User Data Policy and Age Verification</h2>
+        
+        <div className="space-y-4 text-sm text-gray-700">
+          <section>
+            <h3 className="font-bold text-lg mb-2">1. 서비스 이용 및 데이터 활용 동의</h3>
+            <p>본인은 만 14세 이상이거나, 만 14세 미만인 경우 보호자(부모님)의 동의를 얻어 서비스를 이용하며, 아래의 익명 기반 서비스 이용 및 데이터 활용에 동의합니다.</p>
+          </section>
+
+          <section>
+            <h3 className="font-bold text-lg mb-2">2. 개인정보 미수집 안내</h3>
+            <p className="mb-2">본 서비스는 이용자의 소중한 개인정보 보호를 위해 <strong>이메일, 실명, 전화번호를 일절 수집하지 않는</strong> 익명 ID 방식으로 운영됩니다.</p>
+            <ul className="list-disc list-inside ml-4 space-y-1">
+              <li><strong>수집 정보:</strong> 아이디, 비밀번호, 학년, 영어 레벨, 희망 전공, 관심 영역</li>
+              <li><strong>이용 목적:</strong> AI를 활용한 맞춤형 학습 콘텐츠 제공 및 교육 패턴 분석 연구</li>
+              <li><strong>보유 기간:</strong> 회원 탈퇴 시 즉시 삭제 (단, 연구용 통계 데이터는 비식별화된 상태로 보존)</li>
+            </ul>
+          </section>
+        </div>
+
+        <div className="flex gap-4 mt-6">
+          <button onClick={onClose} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+            Cancel
+          </button>
+          <button onClick={onAgree} className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+            I Agree
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Onboarding = ({ setView, user, setUserData }) => {
   const [grade, setGrade] = useState('');
   const [gender, setGender] = useState('');
   const [level, setLevel] = useState('');
-  const [schoolName, setSchoolName] = useState('');
   const [avgTime, setAvgTime] = useState('');
   const [targetMajor, setTargetMajor] = useState('');
   const [interests, setInterests] = useState([]);
@@ -776,7 +900,7 @@ const Onboarding = ({ setView, user, setUserData }) => {
   };
 
   const handleSubmit = async () => {
-    if (!grade || !gender || !level || !schoolName || !avgTime || !targetMajor || interests.length === 0) {
+    if (!grade || !gender || !level || !avgTime || !targetMajor || interests.length === 0) {
       return alert("Please fill in all fields.");
     }
     
@@ -784,7 +908,6 @@ const Onboarding = ({ setView, user, setUserData }) => {
       grade: parseInt(grade), 
       gender, 
       level,
-      school_name: schoolName,
       avg_time: avgTime, 
       target_major: targetMajor, 
       interests
@@ -831,16 +954,6 @@ const Onboarding = ({ setView, user, setUserData }) => {
                   <button key={g} onClick={() => setGender(g)} className={`flex-1 py-2 rounded-lg border ${gender === g ? 'bg-indigo-600 text-white' : 'border-gray-300 hover:bg-gray-50'}`}>{g}</button>
                 ))}
               </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">School Name (학교명)</label>
-              <input 
-                type="text" 
-                value={schoolName}
-                onChange={e => setSchoolName(e.target.value)}
-                className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" 
-                placeholder="e.g. Seoul International School"
-              />
             </div>
             <div>
               <label className="block text-sm font-medium mb-2">English Proficiency</label>
@@ -1018,7 +1131,6 @@ const LearningHub = ({ setView, userData }) => (
     </div>
 );
 
-// --- Module: Vocabulary ---
 const VocabModule = ({ logActivity, updateActivity, user }) => {
   const [mode, setMode] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -1032,6 +1144,7 @@ const VocabModule = ({ logActivity, updateActivity, user }) => {
   const [vocabSet, setVocabSet] = useState([]);
   const [loading, setLoading] = useState(false);
   const [userGrade, setUserGrade] = useState(null);
+  const [recentWords, setRecentWords] = useState([]);
   const startTime = useRef(Date.now());
   const [activityId, setActivityId] = useState(null);
 
@@ -1049,59 +1162,87 @@ const VocabModule = ({ logActivity, updateActivity, user }) => {
     fetchUserGrade();
   }, [user]);
 
-  // GPT API로 단어 생성
-  const generateVocab = async (type) => {
-  setLoading(true);
-  const grade = userGrade || 9;  // ← 이 줄을 여기로 이동!
-  
-  try {
-    const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
+  // TXT 파일에서 단어 읽기 함수
+  const loadVocabFromFile = async (grade, type) => {
+    try {
+      const response = await fetch(`/data/grade${grade}.txt`);
+      const text = await response.text();
+      const lines = text.split('\n').filter(line => line.trim());
       
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [{
-            role: 'user',
-            content: `Generate 5 ${type} vocabulary words appropriate for Grade ${grade} international school students. 
-
-CRITICAL REQUIREMENTS:
-1. Use words from official ${type} word lists and past exam questions
-2. Select words from reputable dictionaries (Merriam-Webster, Oxford, Cambridge)
-3. For ${type === 'TOEFL' ? 'TOEFL iBT' : 'SAT'}, use words that have actually appeared in past tests
-4. Prioritize high-frequency ${type} vocabulary that students need to know
-5. Ensure words are appropriate for Grade ${grade} level
-
-For each word, provide:
-1. The word (must be from official ${type} materials or established dictionaries)
-2. Korean meaning (accurate translation)
-3. 3 incorrect Korean meanings (plausible distractors)
-
-Return ONLY a JSON array with this exact format:
-[
-  {
-    "word": "example",
-    "meaning": "예시",
-    "options": ["예시", "오답1", "오답2", "오답3"]
-  }
-]
-
-Make sure the correct meaning is always included in the options array.`
-          }],
-          temperature: 1.0
+      const vocabData = lines
+        .map(line => {
+          const parts = line.split('|');
+          if (parts.length !== 4) return null;
+          
+          const [word, meaning, optionsStr, vocabType] = parts;
+          const options = optionsStr.split(',');
+          
+          return {
+            word: word.trim(),
+            meaning: meaning.trim(),
+            options: options.map(opt => opt.trim()),
+            type: vocabType.trim()
+          };
         })
-      });
-
-      const data = await response.json();
-      const content = data.choices[0].message.content;
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      const vocabData = JSON.parse(jsonMatch[0]);
+        .filter(item => item && item.type === type);
       
-      setVocabSet(vocabData);
+      return vocabData;
+    } catch (error) {
+      console.error("Failed to load vocab file:", error);
+      return [];
+    }
+  };
+
+  // TXT 파일에서 단어 생성
+  const generateVocab = async (type) => {
+    setLoading(true);
+    const grade = userGrade || 9;
+    
+    try {
+      // 1. TXT 파일에서 단어 로드
+      const allWords = await loadVocabFromFile(grade, type);
+      
+      if (allWords.length === 0) {
+        alert("Failed to load vocabulary data.");
+        setLoading(false);
+        return;
+      }
+      
+      // 2. DB에서 최근 100개 단어 가져오기
+      const { data: recentData, error } = await supabase
+        .from('recent_vocab_words')
+        .select('word')
+        .eq('user_id', user.id)
+        .eq('vocab_type', type)
+        .order('created_at', { ascending: false })
+        .limit(100);
+      
+      if (error) {
+        console.error("Failed to fetch recent words:", error);
+      }
+      
+      const recentWordsSet = new Set(recentData?.map(item => item.word) || []);
+      
+      // 3. 최근 100개 제외
+      const availableWords = allWords.filter(word => !recentWordsSet.has(word.word));
+      
+      // 4. 단어 랜덤으로 5개 선택
+      const selectedWords = [];
+      const shuffled = [...availableWords].sort(() => Math.random() - 0.5);
+      
+      for (let i = 0; i < Math.min(5, shuffled.length); i++) {
+        const wordData = shuffled[i];
+        // 5. 정답 위치 셔플
+        const shuffledOptions = [...wordData.options].sort(() => Math.random() - 0.5);
+        
+        selectedWords.push({
+          word: wordData.word,
+          meaning: wordData.meaning,
+          options: shuffledOptions
+        });
+      }
+      
+      setVocabSet(selectedWords);
       setLoading(false);
       
       // Started 로그 생성
@@ -1111,17 +1252,9 @@ Make sure the correct meaning is always included in the options array.`
       });
       setActivityId(id);
     } catch (error) {
-      console.error("GPT API Error:", error);
-      alert("Failed to generate vocabulary. Using default set.");
-      setVocabSet(VOCAB_SETS[type]);
+      console.error("Load vocab error:", error);
+      alert("Failed to load vocabulary.");
       setLoading(false);
-      
-      // Started 로그 생성 (기본 set 사용)
-      const id = await logActivity('Vocabulary', `${type} - Grade ${grade}`, 0, 0, {
-        vocabType: type,
-        status: 'started'
-      });
-      setActivityId(id);
     }
   };
 
@@ -1134,6 +1267,35 @@ Make sure the correct meaning is always included in the options array.`
     if (isRight) {
       setScore(s => s + 10);
       setFeedback({ type: 'correct', answer: currentQ.meaning });
+      
+      // 정답 맞추면 recent_vocab_words에 추가
+      try {
+        await supabase
+          .from('recent_vocab_words')
+          .insert({
+            user_id: user.id,
+            word: currentQ.word,
+            vocab_type: mode
+          });
+        
+        // 100개 초과 시 가장 오래된 것 삭제
+        const { data: allRecent } = await supabase
+          .from('recent_vocab_words')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('vocab_type', mode)
+          .order('created_at', { ascending: false });
+        
+        if (allRecent && allRecent.length > 100) {
+          const idsToDelete = allRecent.slice(100).map(item => item.id);
+          await supabase
+            .from('recent_vocab_words')
+            .delete()
+            .in('id', idsToDelete);
+        }
+      } catch (error) {
+        console.error("Failed to save recent word:", error);
+      }
     } else {
       setHearts(h => h - 1);
       setFeedback({ type: 'wrong', answer: currentQ.meaning, selected: option });
@@ -2580,8 +2742,6 @@ const MyPage = ({ userData, user }) => {
   const [analysisView, setAnalysisView] = useState(false);
   const [editData, setEditData] = useState({
     nickname: '',
-    email: '',
-    school_name: '',
     grade: 9,
     level: 'Intermediate'
   });
@@ -2590,8 +2750,6 @@ const MyPage = ({ userData, user }) => {
     if (userData) {
       setEditData({
         nickname: userData.nickname || '',
-        email: userData.email || '',
-        school_name: userData.school_name || '',
         grade: userData.grade || 9,
         level: userData.level || 'Intermediate'
       });
@@ -2625,8 +2783,6 @@ const MyPage = ({ userData, user }) => {
         .from('users')
         .update({
           nickname: editData.nickname,
-          email: editData.email,
-          school_name: editData.school_name,
           grade: editData.grade,
           level: editData.level
         })
@@ -2827,14 +2983,6 @@ const MyPage = ({ userData, user }) => {
                 <input type="text" value={editData.nickname} onChange={(e) => setEditData({...editData, nickname: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Email</label>
-                <input type="email" value={editData.email} onChange={(e) => setEditData({...editData, email: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">School Name</label>
-                <input type="text" value={editData.school_name} onChange={(e) => setEditData({...editData, school_name: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
-              </div>
-              <div>
                 <label className="block text-xs text-gray-500 mb-1">Grade</label>
                 <select value={editData.grade} onChange={(e) => setEditData({...editData, grade: parseInt(e.target.value)})} className="w-full p-2 border rounded-lg text-sm">
                   <option value="6">Grade 6 (초6)</option>
@@ -2859,10 +3007,8 @@ const MyPage = ({ userData, user }) => {
           ) : (
             <div className="space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-gray-500">Nickname:</span><span className="font-medium">{userData?.nickname || 'N/A'}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Email:</span><span className="font-medium">{userData?.email || 'N/A'}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Grade:</span><span className="font-medium">{userData?.grade || 'N/A'}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Level:</span><span className="font-medium">{userData?.level || 'N/A'}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">School:</span><span className="font-medium">{userData?.school_name || 'N/A'}</span></div>
             </div>
           )}
         </Card>
