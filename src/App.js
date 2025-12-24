@@ -227,8 +227,8 @@ const Button = ({ children, onClick, variant = 'primary', className = '', disabl
   );
 };
 
-const Card = ({ children, className = '' }) => (
-  <div className={`bg-white rounded-xl shadow-sm border border-gray-100 p-6 ${className}`}>
+const Card = ({ children, className = '', onClick }) => (
+  <div onClick={onClick} className={`bg-white rounded-xl shadow-sm border border-gray-100 p-6 ${className}`}>
     {children}
   </div>
 );
@@ -312,7 +312,12 @@ function App() {
           
           if (data) {
             setUserData(data);
-            setView((currentView) => currentView === 'landing' ? 'learninghub' : currentView);
+            // onboarding_completed가 false면 onboarding으로
+            if (!data.onboarding_completed) {
+              setView('onboarding');
+            } else {
+              setView((currentView) => currentView === 'landing' ? 'learninghub' : currentView);
+            }
           } else {
             // users 테이블에 데이터 없으면 onboarding으로
             setView('onboarding');
@@ -516,6 +521,7 @@ function App() {
                   {view === 'reading' && <ReadingModule logActivity={logActivity} updateActivity={updateActivity} user={user} />}
                   {view === 'grammar' && <GrammarModule logActivity={logActivity} updateActivity={updateActivity} user={user} />}
                   {view === 'mypage' && <MyPage userData={userData} user={user} />}
+                  {view === 'factcheck' && <FactCheckModule logActivity={logActivity} updateActivity={updateActivity} user={user} />}
                 </main>
               </div>
             )}
@@ -635,7 +641,8 @@ const LandingPage = ({ setView, user, setUserData }) => {
           .insert({
             id: authData.user.id,
             nickname: nickname.trim(),
-            points: 0
+            points: 0,
+            onboarding_completed: false
           });
         
         if (insertError) {
@@ -890,6 +897,34 @@ const Onboarding = ({ setView, user, setUserData }) => {
   const [interests, setInterests] = useState([]);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const [country, setCountry] = useState('');
+  const [countries, setCountries] = useState([]);
+  const [countrySearch, setCountrySearch] = useState('');
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+
+  // 국가 목록 불러오기
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await fetch('https://api.first.org/data/v1/countries');
+        const result = await response.json();
+        
+        if (result.status === 'OK' && result.data) {
+          const countryList = Object.entries(result.data)
+            .map(([code, info]) => ({
+              name: info.country,
+              code: code
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+          
+          setCountries(countryList);
+        }
+      } catch (error) {
+        console.error("Failed to fetch countries:", error);
+      }
+    };
+    fetchCountries();
+  }, []);
 
   const toggleInterest = (tag) => {
     if (interests.includes(tag)) {
@@ -899,8 +934,13 @@ const Onboarding = ({ setView, user, setUserData }) => {
     }
   };
 
+  // 국가 검색 필터링
+  const filteredCountries = countries.filter(c => 
+    c.name.toLowerCase().includes(countrySearch.toLowerCase())
+  );
+
   const handleSubmit = async () => {
-    if (!grade || !gender || !level || !avgTime || !targetMajor || interests.length === 0) {
+    if (!grade || !gender || !level || !avgTime || !targetMajor || interests.length === 0 || !country) {
       return alert("Please fill in all fields.");
     }
     
@@ -910,7 +950,9 @@ const Onboarding = ({ setView, user, setUserData }) => {
       level,
       avg_time: avgTime, 
       target_major: targetMajor, 
-      interests
+      interests,
+      country,
+      onboarding_completed: true
     };
     
     const { error } = await supabase
@@ -931,6 +973,17 @@ const Onboarding = ({ setView, user, setUserData }) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <Card className="max-w-2xl w-full my-8">
+        <div className="mb-4">
+          <button 
+            onClick={async () => {
+              await supabase.auth.signOut();
+              setView('landing');
+            }} 
+            className="text-sm text-gray-500 hover:text-indigo-600"
+          >
+            ← Back to Login
+          </button>
+        </div>
         <h2 className="text-2xl font-bold text-center mb-6">Complete Your Profile</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
@@ -985,6 +1038,43 @@ const Onboarding = ({ setView, user, setUserData }) => {
                  className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" 
                  placeholder="e.g. Computer Science, Economics"
                />
+            </div>
+            <div className="relative">
+               <label className="block text-sm font-medium mb-2">Country (국가)</label>
+               <input 
+                 type="text" 
+                 value={countrySearch}
+                 onChange={(e) => {
+                   setCountrySearch(e.target.value);
+                   setShowCountryDropdown(true);
+                 }}
+                 onFocus={() => setShowCountryDropdown(true)}
+                 className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" 
+                 placeholder="Search country... (국가 검색)"
+               />
+               {country && (
+                 <div className="mt-1 text-sm text-green-600">
+                   Selected: {country}
+                 </div>
+               )}
+               {showCountryDropdown && filteredCountries.length > 0 && (
+                 <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                   {filteredCountries.slice(0, 50).map((c) => (
+                     <button
+                       key={c.code}
+                       type="button"
+                       onClick={() => {
+                         setCountry(c.name);
+                         setCountrySearch(c.name);
+                         setShowCountryDropdown(false);
+                       }}
+                       className="w-full text-left px-4 py-2 hover:bg-indigo-50 text-sm"
+                     >
+                       {c.name}
+                     </button>
+                   ))}
+                 </div>
+               )}
             </div>
             <div>
                <label className="block text-sm font-medium mb-2">Preferred Reading Topics</label>
@@ -1060,11 +1150,20 @@ const Sidebar = ({ view, setView, userData, setUser, setUserData }) => {
         </div>
       </div>
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Practice Menu</div>
         {menuItems.map(item => (
           <button key={item.id} onClick={() => setView(item.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${view === item.id ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50'}`}>
             <item.icon size={18} /> {item.label}
           </button>
         ))}
+        
+        <div className="pt-4 mt-4 border-t border-gray-100">
+          <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-2">Special Training</div>
+          <button onClick={() => setView('factcheck')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${view === 'factcheck' ? 'bg-indigo-50 text-indigo-700 border-2 border-indigo-200' : 'text-gray-600 hover:bg-indigo-50'}`}>
+            <span className="text-lg">⚖️</span>
+            Fact Check Writing
+          </button>
+        </div>
       </nav>
       <div className="p-4 border-t border-gray-100 mt-auto">
         <button onClick={handleSignOut} className="flex items-center gap-2 text-gray-500 hover:text-red-600 text-sm"><LogOut size={16} /> Sign Out</button>
@@ -2743,18 +2842,48 @@ const MyPage = ({ userData, user }) => {
   const [editData, setEditData] = useState({
     nickname: '',
     grade: 9,
-    level: 'Intermediate'
+    level: 'Intermediate',
+    country: ''
   });
+  const [countries, setCountries] = useState([]);
+  const [countrySearch, setCountrySearch] = useState('');
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
 
   useEffect(() => {
     if (userData) {
       setEditData({
         nickname: userData.nickname || '',
         grade: userData.grade || 9,
-        level: userData.level || 'Intermediate'
+        level: userData.level || 'Intermediate',
+        country: userData.country || ''
       });
+      setCountrySearch(userData.country || '');
     }
   }, [userData]);
+
+  // 국가 목록 불러오기
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await fetch('https://api.first.org/data/v1/countries');
+        const result = await response.json();
+        
+        if (result.status === 'OK' && result.data) {
+          const countryList = Object.entries(result.data)
+            .map(([code, info]) => ({
+              name: info.country,
+              code: code
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+          
+          setCountries(countryList);
+        }
+      } catch (error) {
+        console.error("Failed to fetch countries:", error);
+      }
+    };
+    fetchCountries();
+  }, []);
 
   useEffect(() => {
     const fetchLogs = async () => {
@@ -2776,6 +2905,11 @@ const MyPage = ({ userData, user }) => {
     fetchLogs();
   }, [user]);
 
+  // 국가 검색 필터링
+  const filteredCountries = countries.filter(c => 
+    c.name.toLowerCase().includes(countrySearch.toLowerCase())
+  );
+
   const handleSaveProfile = async () => {
     if (!user) return;
     try {
@@ -2784,7 +2918,8 @@ const MyPage = ({ userData, user }) => {
         .update({
           nickname: editData.nickname,
           grade: editData.grade,
-          level: editData.level
+          level: editData.level,
+          country: editData.country
         })
         .eq('id', user.id);
       
@@ -3002,6 +3137,43 @@ const MyPage = ({ userData, user }) => {
                   <option value="Advanced">Advanced</option>
                 </select>
               </div>
+              <div className="relative">
+                <label className="block text-xs text-gray-500 mb-1">Country</label>
+                <input 
+                  type="text" 
+                  value={countrySearch}
+                  onChange={(e) => {
+                    setCountrySearch(e.target.value);
+                    setShowCountryDropdown(true);
+                  }}
+                  onFocus={() => setShowCountryDropdown(true)}
+                  className="w-full p-2 border rounded-lg text-sm" 
+                  placeholder="Search country..."
+                />
+                {editData.country && (
+                  <div className="mt-1 text-xs text-green-600">
+                    Selected: {editData.country}
+                  </div>
+                )}
+                {showCountryDropdown && filteredCountries.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {filteredCountries.slice(0, 50).map((c) => (
+                      <button
+                        key={c.code}
+                        type="button"
+                        onClick={() => {
+                          setEditData({...editData, country: c.name});
+                          setCountrySearch(c.name);
+                          setShowCountryDropdown(false);
+                        }}
+                        className="w-full text-left px-4 py-2 hover:bg-indigo-50 text-sm"
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <Button onClick={handleSaveProfile} className="w-full">Save Changes</Button>
             </div>
           ) : (
@@ -3009,6 +3181,7 @@ const MyPage = ({ userData, user }) => {
               <div className="flex justify-between"><span className="text-gray-500">Nickname:</span><span className="font-medium">{userData?.nickname || 'N/A'}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Grade:</span><span className="font-medium">{userData?.grade || 'N/A'}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Level:</span><span className="font-medium">{userData?.level || 'N/A'}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Country:</span><span className="font-medium">{userData?.country || 'N/A'}</span></div>
             </div>
           )}
         </Card>
@@ -3074,4 +3247,711 @@ const MyPage = ({ userData, user }) => {
       </Card>
     </div>
   );
+};
+
+const FactCheckModule = ({ logActivity, updateActivity, user }) => {
+  const [step, setStep] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [topics, setTopics] = useState([]);
+  const [selectedTopic, setSelectedTopic] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [insightChecked, setInsightChecked] = useState(false);
+  const [evidences, setEvidences] = useState([]);
+  const [supportArgs, setSupportArgs] = useState([]);
+  const [counterArgs, setCounterArgs] = useState([]);
+  const [essay, setEssay] = useState('');
+  const [hooks, setHooks] = useState(null);
+  const [showHookModal, setShowHookModal] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const [showValidatorModal, setShowValidatorModal] = useState(false);
+  const [currentEvidenceIdx, setCurrentEvidenceIdx] = useState(null);
+  const [validatorChecks, setValidatorChecks] = useState({
+    authority: false,
+    currency: false,
+    accuracy: false,
+    objectivity: false
+  });
+  const [validatorInputs, setValidatorInputs] = useState({
+    authority: '',
+    currency: '',
+    accuracy: '',
+    objectivity: ''
+  });
+  const [showTooltip, setShowTooltip] = useState(null);
+
+  const tooltips = {
+    authority: "신뢰할 수 있는 출처인가요? (예: 학술지, 정부 기관, 전문가)",
+    currency: "최신 정보인가요? 발행일이나 업데이트 날짜를 확인하세요.",
+    accuracy: "사실이 정확한가요? 다른 출처와 교차 검증했나요?",
+    objectivity: "객관적인가요? 편향이나 의견이 섞여있지 않나요?"
+  };
+
+  // GPT로 주제 3개 생성
+  const generateTopics = async (category) => {
+    setLoading(true);
+    try {
+      const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
+      
+      let categoryPrompt = '';
+      if (category === 'literacy') {
+        categoryPrompt = 'Focus on topics requiring SOURCE EVALUATION and FACT-CHECKING skills. Topics should involve identifying credible sources, detecting bias, and verifying information.';
+      } else if (category === 'critical') {
+        categoryPrompt = 'Focus on topics requiring LOGICAL REASONING and ARGUMENT ANALYSIS. Topics should involve weighing pros/cons, identifying fallacies, and strategic thinking.';
+      } else if (category === 'persuasive') {
+        categoryPrompt = 'Focus on topics requiring PERSUASIVE WRITING and EVIDENCE-BASED ARGUMENTATION. Topics should involve building strong claims with supporting evidence.';
+      }
+      
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [{
+            role: 'user',
+            content: `Generate 3 UNIQUE and CONTROVERSIAL debate topics suitable for international school students (Grades 9-12).
+
+${categoryPrompt}
+
+Each topic should:
+- Be debatable with clear pro/con arguments
+- Have factual evidence available for research
+- Be relevant to current events or timeless issues
+- NOT be overused topics (avoid cliché debate topics)
+
+Return ONLY a JSON array with this format:
+[
+  {
+    "title": "Topic Title (English)",
+    "question": "Main question in English"
+  }
+]`
+          }],
+          temperature: 1.0
+        })
+      });
+
+      const data = await response.json();
+      const content = data.choices[0].message.content;
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      const topicsData = JSON.parse(jsonMatch[0]);
+      
+      setTopics(topicsData);
+      setLoading(false);
+      setStep(1);
+    } catch (error) {
+      console.error("GPT API Error:", error);
+      alert("Failed to generate topics. Please try again.");
+      setLoading(false);
+    }
+  };
+
+  // Hook 제안 생성
+  const generateHooks = async () => {
+    setLoading(true);
+    try {
+      const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
+      const topic = topics[selectedTopic];
+      
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [{
+            role: 'user',
+            content: `Generate 3 compelling essay hooks for this topic: "${topic.title}"
+
+Each hook should use a different technique:
+1. Shocking statistic/fact
+2. Provocative question
+3. Relevant anecdote/scenario
+
+Format in Korean, numbered list. Keep each hook to 2-3 sentences.`
+          }],
+          temperature: 0.9
+        })
+      });
+
+      const data = await response.json();
+      setHooks(data.choices[0].message.content);
+      setLoading(false);
+      setShowHookModal(true);
+    } catch (error) {
+      console.error("GPT API Error:", error);
+      alert("Failed to generate hooks.");
+      setLoading(false);
+    }
+  };
+
+  // 에세이 제출 및 AI 피드백
+  const submitEssay = async () => {
+    setLoading(true);
+    try {
+      const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
+      
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [{
+            role: 'user',
+            content: `Review and improve this essay. Original essay:
+
+${essay}
+
+Provide:
+1. Professional revision (improved version in Korean)
+2. 3 specific learning points analyzing THIS STUDENT'S essay:
+   - 논리적 흐름: Analyze the logical flow and argument structure of THIS essay
+   - 구조: Evaluate the organization and paragraph structure of THIS essay
+   - 표현력: Assess the vocabulary and expression quality of THIS essay
+
+Each learning point should reference specific issues or strengths from the student's actual writing.
+
+Format as JSON:
+{
+  "revision": "improved essay text in Korean",
+  "learningPoints": [
+    {"title": "논리적 흐름", "content": "Specific feedback on THIS student's logical flow in Korean"},
+    {"title": "구조", "content": "Specific feedback on THIS student's structure in Korean"},
+    {"title": "표현력", "content": "Specific feedback on THIS student's expression in Korean"}
+  ]
+}
+
+All content must be in Korean.`
+          }],
+          temperature: 0.7
+        })
+      });
+
+      const data = await response.json();
+      const content = data.choices[0].message.content;
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      const feedbackData = JSON.parse(jsonMatch[0]);
+      
+      setFeedback(feedbackData);
+      setLoading(false);
+      setStep(5);
+    } catch (error) {
+      console.error("GPT API Error:", error);
+      alert("Failed to submit essay.");
+      setLoading(false);
+    }
+  };
+
+  const handleSelfCheck = (idx) => {
+    setCurrentEvidenceIdx(idx);
+    setValidatorChecks({ authority: false, currency: false, accuracy: false, objectivity: false });
+    setValidatorInputs({ authority: '', currency: '', accuracy: '', objectivity: '' });
+    setShowValidatorModal(true);
+  };
+
+  const submitValidation = () => {
+    const checkedCount = Object.values(validatorChecks).filter(v => v).length;
+    const feedback = `✓ 검증 완료 (${checkedCount}/4 항목 체크됨)
+${validatorChecks.authority ? `- 전문성: ${validatorInputs.authority || '확인됨'}` : ''}
+${validatorChecks.currency ? `- 최신성: ${validatorInputs.currency || '확인됨'}` : ''}
+${validatorChecks.accuracy ? `- 정확성: ${validatorInputs.accuracy || '확인됨'}` : ''}
+${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '확인됨'}` : ''}`;
+    
+    const updated = [...evidences];
+    updated[currentEvidenceIdx].feedback = feedback;
+    setEvidences(updated);
+    setShowValidatorModal(false);
+  };
+
+  // Step 0: Intro
+  if (step === 0) {
+    return (
+      <div className="space-y-8 max-w-6xl mx-auto">
+        <div className="flex items-center gap-4 mb-8">
+          <span className="bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-full uppercase tracking-wider">Intro</span>
+          <h2 className="text-2xl font-bold text-slate-800">Overview</h2>
+        </div>
+
+        <div className="text-center mb-12">
+          <div className="inline-block bg-indigo-100 text-indigo-700 px-5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-6">Editor's Path</div>
+          <h1 className="text-4xl md:text-5xl font-black text-slate-800 mb-6 leading-tight italic">Fact Check & English Writing</h1>
+          <p className="text-gray-600 mb-4">Master the art of persuasive writing through rigorous evidence checking.</p>
+          <p className="text-black max-w-3xl mx-auto leading-relaxed">"Truth is perfected through editorial verification. Begin your journey with our professional program for information validation and logical architecture. A true editor does not merely string words together; they strategically arrange evidence. Elevate your writing skills for free through our professional 5-step course designed to track the truth and engineer logic."</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+          <Card onClick={() => setSelectedCategory('literacy')} className={`p-8 text-center cursor-pointer transition-all ${selectedCategory === 'literacy' ? 'border-4 border-indigo-600 shadow-xl' : 'hover:shadow-lg'}`}>
+            <div className="text-4xl mb-4">🔎</div>
+            <h3 className="font-bold text-lg mb-2">Information Literacy</h3>
+            <p className="text-sm text-gray-500">Evaluate the credibility and bias of your sources.</p>
+          </Card>
+          <Card onClick={() => setSelectedCategory('critical')} className={`p-8 text-center cursor-pointer transition-all ${selectedCategory === 'critical' ? 'border-4 border-indigo-600 shadow-xl' : 'hover:shadow-lg'}`}>
+            <div className="text-4xl mb-4">⚖️</div>
+            <h3 className="font-bold text-lg mb-2">Critical Thinking</h3>
+            <p className="text-sm text-gray-500">Organize support and counter-arguments strategically.</p>
+          </Card>
+          <Card onClick={() => setSelectedCategory('persuasive')} className={`p-8 text-center cursor-pointer transition-all ${selectedCategory === 'persuasive' ? 'border-4 border-indigo-600 shadow-xl' : 'hover:shadow-lg'}`}>
+            <div className="text-4xl mb-4">✍️</div>
+            <h3 className="font-bold text-lg mb-2">Persuasive Writing</h3>
+            <p className="text-sm text-gray-500">Write sophisticated essays with evidence-based reasoning.</p>
+          </Card>
+        </div>
+
+        <div className="mb-16">
+          <h4 className="text-center font-bold text-gray-400 uppercase text-xs tracking-wider mb-10">Training Process Flow</h4>
+          <div className="flex justify-between items-center max-w-4xl mx-auto relative">
+            <div className="absolute top-6 left-0 right-0 h-0.5 bg-gray-200 z-0"></div>
+            {[
+              { num: 1, label: 'Topic & Insight' },
+              { num: 2, label: 'Evidence Check' },
+              { num: 3, label: 'Logic Mapping' },
+              { num: 4, label: 'Pro Drafting' },
+              { num: 5, label: 'AI Analysis' }
+            ].map(item => (
+              <div key={item.num} className="flex flex-col items-center gap-3 relative z-10">
+                <div className="w-12 h-12 rounded-full bg-white border-2 border-gray-200 text-gray-400 font-bold text-lg flex items-center justify-center shadow-sm">{item.num}</div>
+                <span className="text-xs font-bold text-gray-400 uppercase whitespace-nowrap">{item.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex justify-center">
+          <Button onClick={() => { if(selectedCategory) generateTopics(selectedCategory); }} disabled={!selectedCategory || loading} className="px-16 py-6 text-xl">
+            {loading ? (
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                Generating Topics...
+              </div>
+            ) : 'Start Training Path →'}
+          </Button>
+        </div>
+        
+        {!selectedCategory && <div className="text-center text-gray-500 text-sm">👆 Select a category above to begin</div>}
+      </div>
+    );
+  }
+
+  // Step 1: Pick a Debatable Topic
+  if (step === 1) {
+    if (loading || topics.length === 0) {
+      return (
+        <div className="text-center py-20">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">AI가 팩트체크 주제를 생성 중입니다...</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setStep(0)} className="text-gray-500 hover:text-indigo-600">← Back</button>
+            <h2 className="text-3xl font-bold">Step 1: Pick a Debatable Topic</h2>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          {topics.map((topic, idx) => (
+            <Card key={idx} onClick={() => setSelectedTopic(idx)} className={`p-6 cursor-pointer transition-all ${selectedTopic === idx ? 'border-4 border-indigo-600 bg-indigo-50' : 'hover:shadow-lg'}`}>
+              <h4 className="text-lg font-bold mb-3">{topic.title}</h4>
+              <p className="text-sm text-gray-500">{topic.question}</p>
+            </Card>
+          ))}
+        </div>
+
+        <Card className="p-8 bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-200">
+          <h3 className="text-xl font-bold mb-2">Fact-Check Insight</h3>
+          <p className="text-sm text-gray-600 mb-4">Select a topic and click the button to see the core conflict.</p>
+          
+          <Button onClick={() => setInsightChecked(true)} disabled={selectedTopic === null || insightChecked} className="bg-indigo-600">
+            {insightChecked ? '✓ Checked' : '✨ Get Fact-Check Insight'}
+          </Button>
+        </Card>
+
+        <div className="flex justify-center pt-8">
+          <Button onClick={() => setStep(2)} disabled={!insightChecked} className="px-12 py-4 text-lg">
+            Go to Next Step →
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 2: Evidence Locker
+  if (step === 2) {
+    return (
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div className="flex items-center gap-3 mb-6">
+          <button onClick={() => setStep(1)} className="text-gray-500 hover:text-indigo-600">← Back</button>
+          <span className="bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-full">Step 2</span>
+          <h2 className="text-2xl font-bold">Evidence Locker</h2>
+        </div>
+
+        <div className="text-sm text-blue-700 bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+          💡 Why find a counter-fact? Identifying opposing views allows you to directly address and refute them. This creates a much stronger, sophisticated, and more convincing logical structure for your essay.
+        </div>
+
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+          ⚠️ Minimum 2 evidences required (1 Support, 1 Counter fact).
+        </div>
+
+        <div className="space-y-6">
+          {evidences.map((ev, idx) => (
+            <Card key={idx} className="p-6 relative">
+              <div className="flex items-center justify-between mb-4">
+                <span className={`px-3 py-1 rounded-full text-xs font-bold ${ev.type === 'support' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  {ev.type === 'support' ? '✓ 지지 (Support)' : '⚠️ 반론 (Counter)'}
+                </span>
+                <Button onClick={() => handleSelfCheck(idx)} disabled={!ev.text} className="bg-indigo-600 text-sm px-4 py-2">
+                  SELF-CHECK
+                </Button>
+              </div>
+              <textarea 
+                value={ev.text} 
+                onChange={(e) => {
+                  const updated = [...evidences];
+                  updated[idx].text = e.target.value;
+                  setEvidences(updated);
+                }} 
+                placeholder="Summarize your evidence (Support or Counter)..." 
+                className="w-full border rounded p-3 mb-3 text-sm" 
+                rows="3" 
+              />
+              <input 
+                type="text" 
+                value={ev.source || ''} 
+                onChange={(e) => {
+                  const updated = [...evidences];
+                  updated[idx].source = e.target.value;
+                  setEvidences(updated);
+                }} 
+                placeholder="Source URL" 
+                className="w-full border rounded p-2 mb-3 text-sm" 
+              />
+              {ev.feedback && (
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-3 text-sm mb-3 whitespace-pre-line">
+                  {ev.feedback}
+                </div>
+              )}
+              <div className="flex gap-2 text-xs text-gray-500">
+                <a href="https://scholar.google.com/" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600 cursor-pointer">🔗 Google Scholar</a>
+                <a href="https://arxiv.org/" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600 cursor-pointer">🔗 arXiv</a>
+                <a href="https://eric.ed.gov/" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600 cursor-pointer">🔗 ERIC</a>
+                <button className="hover:text-indigo-600">...</button>
+              </div>
+            </Card>
+          ))}
+
+          <div className="flex justify-center">
+            <button 
+              onClick={() => setEvidences([...evidences, { type: evidences.length % 2 === 0 ? 'support' : 'counter', text: '', source: '', feedback: null }])} 
+              className="border-2 border-dashed border-indigo-600 bg-white text-indigo-600 hover:bg-indigo-50 px-8 py-3 rounded-lg font-medium transition-all"
+            >
+              + Add Evidence
+            </button>
+          </div>
+        </div>
+
+        <div className="flex justify-center pt-8">
+          <Button onClick={() => setStep(3)} disabled={evidences.length < 2} className="px-12 py-4 text-lg">Next Step →</Button>
+        </div>
+
+        {showValidatorModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowValidatorModal(false)}>
+            <div className="bg-white rounded-2xl max-w-2xl w-full mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-indigo-600 text-white p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">🌐</span>
+                    <h3 className="text-2xl font-bold">Source Validator</h3>
+                  </div>
+                  <button onClick={() => setShowValidatorModal(false)} className="text-white text-2xl hover:text-gray-200">×</button>
+                </div>
+                <p className="text-sm mt-2 opacity-90">AI가 아닌, 에디터의 논으로 직접 심사하세요.</p>
+              </div>
+
+              <div className="p-6">
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-3 mb-6 text-sm text-blue-800">
+                  💡 각 항목의 [?] 아이콘을 눌러 추천 사이트를 확인하세요!
+                </div>
+
+                <div className="space-y-4">
+                  {[
+                    { key: 'authority', label: '전문성 (Authority)', desc: '누가 썼나요?' },
+                    { key: 'currency', label: '최신성 (Currency)', desc: '언제 썼나요?' },
+                    { key: 'accuracy', label: '정확성 (Accuracy)', desc: '교차 검증 되었나요?' },
+                    { key: 'objectivity', label: '객관성 (Objectivity)', desc: '중립적인가요?' }
+                  ].map(item => (
+                    <div key={item.key} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <input 
+                            type="checkbox" 
+                            checked={validatorChecks[item.key]}
+                            onChange={(e) => setValidatorChecks({...validatorChecks, [item.key]: e.target.checked})}
+                            className="w-5 h-5"
+                          />
+                          <div>
+                            <div className="font-bold">{item.label}</div>
+                            <div className="text-xs text-gray-500">{item.desc}</div>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => setShowTooltip(showTooltip === item.key ? null : item.key)}
+                          className="text-red-500 text-xl hover:text-red-700"
+                        >
+                          ?
+                        </button>
+                      </div>
+                      {showTooltip === item.key && (
+                        <div className="mt-2 p-3 bg-gray-50 rounded text-sm text-gray-700">
+                          {tooltips[item.key]}
+                        </div>
+                      )}
+                      {validatorChecks[item.key] && (
+                        <input 
+                          type="text"
+                          value={validatorInputs[item.key]}
+                          onChange={(e) => setValidatorInputs({...validatorInputs, [item.key]: e.target.value})}
+                          placeholder="선택사항: 메모를 입력하세요..."
+                          className="w-full border rounded p-2 mt-2 text-sm"
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <button 
+                  onClick={submitValidation}
+                  className="w-full bg-slate-900 text-white py-4 rounded-lg font-bold text-lg mt-6 hover:bg-slate-800 transition-all"
+                >
+                  진단 결과 적용
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Step 3: Logic Mapping
+  if (step === 3) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center gap-3 mb-6">
+          <button onClick={() => setStep(2)} className="text-gray-500 hover:text-indigo-600">← Back</button>
+          <span className="bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-full">Step 3</span>
+          <h2 className="text-2xl font-bold">논리 배치</h2>
+        </div>
+
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+          ⚠️ 균형 잡힌 시각을 위해 지지(Support)와 반론(Counter) 팩트를 각각 1개 이상 배치하세요.
+        </div>
+
+        <div className="grid grid-cols-2 gap-6">
+          <div>
+            <h3 className="text-sm font-bold text-gray-500 mb-3">검증된 팩트 보관함</h3>
+            <div className="space-y-3">
+              {evidences.map((ev, idx) => (
+                <Card key={idx} className="p-4 cursor-move hover:shadow-lg transition-all">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <div className="text-sm font-bold mb-1">"{ev.text.substring(0, 50)}..."</div>
+                      <div className="flex gap-2 mt-2">
+                        <Button onClick={() => setSupportArgs([...supportArgs, ev])} className="text-xs py-1 px-2 bg-green-600 text-white hover:bg-green-700">지지 (Support)</Button>
+                        <Button onClick={() => setCounterArgs([...counterArgs, ev])} className="text-xs py-1 px-2 bg-red-600 text-white hover:bg-red-700">반론 (Counter)</Button>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <Card className="p-6 bg-green-50 border-2 border-green-200">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-green-600 font-bold">✓ SUPPORT ASSET</span>
+                <span className="bg-green-600 text-white px-2 py-0.5 rounded-full text-xs">{supportArgs.length}</span>
+              </div>
+              <div className="space-y-2">
+                {supportArgs.map((arg, idx) => (
+                  <div key={idx} className="bg-white border-2 border-green-300 rounded-lg p-3 text-sm">
+                    {arg.text.substring(0, 60)}...
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card className="p-6 bg-red-50 border-2 border-red-200">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-red-600 font-bold">✗ COUNTER POINT</span>
+                <span className="bg-red-600 text-white px-2 py-0.5 rounded-full text-xs">{counterArgs.length}</span>
+              </div>
+              <div className="space-y-2">
+                {counterArgs.map((arg, idx) => (
+                  <div key={idx} className="bg-white border-2 border-red-300 rounded-lg p-3 text-sm">
+                    {arg.text.substring(0, 60)}...
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        </div>
+
+        <div className="flex justify-center pt-8">
+          <Button onClick={() => setStep(4)} disabled={supportArgs.length === 0 || counterArgs.length === 0} className="px-12 py-4 text-lg bg-indigo-600">배치 완료 (최소 1개씩) →</Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 4: Pro Editor Mode
+  if (step === 4) {    
+    return (
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setStep(3)} className="text-gray-500 hover:text-indigo-600">← Back</button>
+            <span className="bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-full">Step 4</span>
+            <h2 className="text-2xl font-bold">Pro Editor Mode</h2>
+          </div>
+          <div className="flex gap-2 text-xs">
+            <span className="bg-indigo-600 text-white w-3 h-3 rounded-full"></span>
+            <span className="bg-indigo-600 text-white w-3 h-3 rounded-full"></span>
+            <span className="bg-indigo-600 text-white w-3 h-3 rounded-full"></span>
+            <span className="bg-indigo-600 text-white w-3 h-3 rounded-full"></span>
+            <span className="bg-gray-300 w-3 h-3 rounded-full"></span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1 space-y-4">
+            <div className="bg-indigo-600 text-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="text-xs font-bold mb-3 text-white uppercase tracking-wider">SUBJECT</div>
+              <h3 className="text-base font-bold mb-3 text-white leading-tight">{topics[selectedTopic].title}</h3>
+              <p className="text-xs text-white opacity-90 leading-relaxed">{topics[selectedTopic].question}</p>
+            </div>
+
+            <Card className="p-4 bg-red-50 border-2 border-red-200">
+              <div className="text-xs font-bold text-red-600 mb-2">✗ 반론 & 역주장</div>
+              {counterArgs.map((arg, idx) => (
+                <div key={idx} className="bg-white p-2 rounded mb-2 text-xs">"{arg.text.substring(0, 50)}..."</div>
+              ))}
+            </Card>
+
+            <Card className="p-4 bg-green-50 border-2 border-green-200">
+              <div className="text-xs font-bold text-green-600 mb-2">✓ 지지 근거 자료</div>
+              {supportArgs.map((arg, idx) => (
+                <div key={idx} className="bg-white p-2 rounded mb-2 text-xs">"{arg.text.substring(0, 50)}..."</div>
+              ))}
+            </Card>
+          </div>
+
+          <div className="lg:col-span-2">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-sm font-bold text-gray-500">DRAFTING MODE</div>
+              <div className="flex gap-2">
+                <Button onClick={generateHooks} disabled={loading} className="text-sm bg-indigo-600 text-white hover:bg-indigo-700">
+                  ✨ 서론 아이디어 얻기
+                </Button>
+                <Button onClick={submitEssay} disabled={!essay || loading} className="text-sm bg-indigo-400 text-white hover:bg-indigo-500">
+                  제출 및 분석받기
+                </Button>
+              </div>
+            </div>
+            <textarea value={essay} onChange={(e) => setEssay(e.target.value)} placeholder="조사한 팩트들을 연결하여 논리적인 에세이를 작성하세요..." className="w-full border-2 border-gray-300 rounded-lg p-4 text-sm h-96" />
+          </div>
+        </div>
+
+        {showHookModal && hooks && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowHookModal(false)}>
+            <Card className="max-w-2xl w-full mx-4 p-8 bg-white" onClick={(e) => e.stopPropagation()}>
+              <div className="text-center mb-6">
+                <div className="text-5xl mb-4">✍️</div>
+                <h3 className="text-2xl font-bold mb-2 text-gray-800">AI HOOK SUGGESTION</h3>
+              </div>
+              <div className="bg-gray-100 text-black p-6 rounded-lg mb-6 whitespace-pre-line">{hooks}</div>
+              <Button onClick={() => setShowHookModal(false)} className="w-full bg-indigo-600 text-white hover:bg-indigo-700">에디터로 돌아가기</Button>
+            </Card>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Step 5: Better Expression & Feedback
+  if (step === 5) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center gap-3 mb-6">
+          <span className="bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-full">Step 5</span>
+          <h2 className="text-2xl font-bold">Better Expression & Feedback</h2>
+        </div>
+
+        <div className="text-center mb-8">
+          <div className="text-5xl mb-4">🏆</div>
+          <h3 className="text-3xl font-bold mb-2">훈련 마감! AI 심층 피드백</h3>
+          <p className="text-gray-600">에디터님의 글과 AI 수준 모범 답안을 비교하여 한 단계 더 도약하세요.</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-6 mb-8">
+          <Card className="p-6">
+            <div className="text-sm font-bold text-gray-500 mb-4">YOUR ORIGINAL DRAFT</div>
+            <div className="bg-gray-50 p-4 rounded-lg text-sm whitespace-pre-line h-96 overflow-y-auto">{essay}</div>
+          </Card>
+
+          <Card className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-indigo-200">
+            <div className="text-sm font-bold text-indigo-700 mb-4">✨ AI PROFESSIONAL REVISION</div>
+            <div className="bg-white p-4 rounded-lg text-sm whitespace-pre-line h-96 overflow-y-auto">{feedback?.revision}</div>
+          </Card>
+        </div>
+
+        <Card className="p-8 bg-gradient-to-r from-slate-800 to-slate-900 text-white">
+          <div className="flex items-center gap-2 mb-6">
+            <span className="text-2xl">🧠</span>
+            <h3 className="text-xl font-bold">심층 논리 가이드 (AI Learning Points)</h3>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            {feedback?.learningPoints?.map((point, idx) => (
+              <div key={idx} className="p-4 bg-slate-700 rounded-xl border border-slate-600">
+                <div className="text-xs font-bold text-indigo-300 mb-2">{point.title}</div>
+                <p className="text-xs leading-relaxed text-white">{point.content}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <div className="flex justify-center pt-8">
+          <Button onClick={() => {
+            setStep(0);
+            setTopics([]);
+            setSelectedTopic(null);
+            setSelectedCategory(null);
+            setInsightChecked(false);
+            setEvidences([]);
+            setSupportArgs([]);
+            setCounterArgs([]);
+            setEssay('');
+            setHooks(null);
+            setFeedback(null);
+          }} className="px-12 py-4 text-lg bg-indigo-600">
+            새로운 훈련 시작하기
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return <div className="text-center py-20">Loading...</div>;
 };
