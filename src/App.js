@@ -3284,6 +3284,8 @@ const FactCheckModule = ({ logActivity, updateActivity, user }) => {
   const [showPointsEn, setShowPointsEn] = useState(false);
   const [translatingHooks, setTranslatingHooks] = useState(false);
   const [showHooksEn, setShowHooksEn] = useState(false);
+  const [insightContent, setInsightContent] = useState(null);
+  const [showInsightModal, setShowInsightModal] = useState(false);
 
   const tooltips = {
     authority: "신뢰할 수 있는 출처인가요? (예: 학술지, 정부 기관, 전문가)",
@@ -3424,6 +3426,51 @@ Format in Korean, numbered list. Keep each hook to 2-3 sentences.`
     } catch (error) {
       console.error("GPT API Error:", error);
       alert("Failed to generate hooks.");
+      setLoading(false);
+    }
+  };
+
+  // Fact-Check Insight 생성
+  const generateInsight = async () => {
+    setLoading(true);
+    try {
+      const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
+      const topic = topics[selectedTopic];
+      
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [{
+            role: 'user',
+            content: `Analyze this debate topic and provide key conflict points:
+
+Topic: "${topic.title}"
+Question: "${topic.question}"
+
+Provide a brief analysis in English with:
+1. Core Conflict (2-3 sentences summarizing the key debate points)
+2. Support Keywords (3-4 main keywords supporting the topic)
+3. Counter Keywords (3-4 main keywords opposing the topic)
+
+Keep it concise and focused on factual debate points.`
+          }],
+          temperature: 0.7
+        })
+      });
+
+      const data = await response.json();
+      setInsightContent(data.choices[0].message.content);
+      setInsightChecked(true);
+      setShowInsightModal(true);
+      setLoading(false);
+    } catch (error) {
+      console.error("GPT API Error:", error);
+      alert("Failed to generate insight.");
       setLoading(false);
     }
   };
@@ -3605,7 +3652,11 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
           {topics.map((topic, idx) => (
-            <Card key={idx} onClick={() => setSelectedTopic(idx)} className={`p-4 md:p-6 cursor-pointer transition-all ${selectedTopic === idx ? 'border-4 border-indigo-600 bg-indigo-50' : 'hover:shadow-lg'}`}>
+            <Card key={idx} onClick={() => {
+              setSelectedTopic(idx);
+              setInsightChecked(false);
+              setInsightContent(null);
+            }} className={`p-4 md:p-6 cursor-pointer transition-all ${selectedTopic === idx ? 'border-4 border-indigo-600 bg-indigo-50' : 'hover:shadow-lg'}`}>
               <h4 className="text-base md:text-lg font-bold mb-2 md:mb-3">{topic.title}</h4>
               <p className="text-xs md:text-sm text-gray-500">{topic.question}</p>
             </Card>
@@ -3616,8 +3667,8 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
           <h3 className="text-lg md:text-xl font-bold mb-2">Fact-Check Insight</h3>
           <p className="text-xs md:text-sm text-gray-600 mb-3 md:mb-4">Select a topic and click the button to see the core conflict.</p>
           
-          <Button onClick={() => setInsightChecked(true)} disabled={selectedTopic === null || insightChecked} className="bg-indigo-600 text-sm md:text-base">
-            {insightChecked ? '✓ Checked' : '✨ Get Fact-Check Insight'}
+          <Button onClick={generateInsight} disabled={selectedTopic === null || loading} className="bg-indigo-600 text-sm md:text-base">
+            {loading ? 'Loading...' : (insightChecked ? '✓ Checked' : '✨ Get Fact-Check Insight')}
           </Button>
         </Card>
 
@@ -3626,6 +3677,23 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
             Go to Next Step →
           </Button>
         </div>
+
+        {showInsightModal && insightContent && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowInsightModal(false)}>
+            <Card className="max-w-2xl w-full p-6 md:p-8 bg-white" onClick={(e) => e.stopPropagation()}>
+              <div className="text-center mb-4 md:mb-6">
+                <div className="text-4xl md:text-5xl mb-3 md:mb-4">💡</div>
+                <h3 className="text-xl md:text-2xl font-bold mb-2 text-gray-800">Fact-Check Insight</h3>
+              </div>
+              <div className="bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-200 text-black p-4 md:p-6 rounded-lg mb-4 md:mb-6 whitespace-pre-line text-sm md:text-base">
+                {insightContent}
+              </div>
+              <Button onClick={() => setShowInsightModal(false)} className="w-full bg-indigo-600 text-white hover:bg-indigo-700 text-sm md:text-base">
+                확인
+              </Button>
+            </Card>
+          </div>
+        )}
       </div>
     );
   }
