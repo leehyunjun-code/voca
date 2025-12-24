@@ -3282,6 +3282,8 @@ const FactCheckModule = ({ logActivity, updateActivity, user }) => {
   const [translatingPoints, setTranslatingPoints] = useState(false);
   const [showRevisionEn, setShowRevisionEn] = useState(false);
   const [showPointsEn, setShowPointsEn] = useState(false);
+  const [translatingHooks, setTranslatingHooks] = useState(false);
+  const [showHooksEn, setShowHooksEn] = useState(false);
 
   const tooltips = {
     authority: "신뢰할 수 있는 출처인가요? (예: 학술지, 정부 기관, 전문가)",
@@ -3510,68 +3512,73 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
   // Step 0: Intro
   if (step === 0) {
     return (
-      <div className="space-y-8 max-w-6xl mx-auto">
-        <div className="flex items-center gap-4 mb-8">
-          <span className="bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-full uppercase tracking-wider">Intro</span>
-          <h2 className="text-2xl font-bold text-slate-800">Overview</h2>
+      <div className="space-y-6 md:space-y-8 max-w-6xl mx-auto px-4">
+        <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8">
+          <span className="bg-indigo-600 text-white text-xs font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full uppercase tracking-wider">Intro</span>
+          <h2 className="text-xl md:text-2xl font-bold text-slate-800">Overview</h2>
         </div>
 
-        <div className="text-center mb-12">
-          <div className="inline-block bg-indigo-100 text-indigo-700 px-5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-6">Editor's Path</div>
-          <h1 className="text-4xl md:text-5xl font-black text-slate-800 mb-6 leading-tight italic">Fact Check & English Writing</h1>
-          <p className="text-gray-600 mb-4">Master the art of persuasive writing through rigorous evidence checking.</p>
-          <p className="text-black max-w-3xl mx-auto leading-relaxed">"Truth is perfected through editorial verification. Begin your journey with our professional program for information validation and logical architecture. A true editor does not merely string words together; they strategically arrange evidence. Elevate your writing skills for free through our professional 5-step course designed to track the truth and engineer logic."</p>
+        <div className="text-center mb-8 md:mb-12">
+          <div className="inline-block bg-indigo-100 text-indigo-700 px-4 md:px-5 py-1 md:py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-4 md:mb-6">Editor's Path</div>
+          <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-slate-800 mb-4 md:mb-6 leading-tight italic px-2">Fact Check & English Writing</h1>
+          <p className="text-sm md:text-base text-gray-600 mb-3 md:mb-4 px-4">Master the art of persuasive writing through rigorous evidence checking.</p>
+          <p className="text-sm md:text-base text-black max-w-3xl mx-auto leading-relaxed px-4">"Truth is perfected through editorial verification. Begin your journey with our professional program for information validation and logical architecture. A true editor does not merely string words together; they strategically arrange evidence. Elevate your writing skills for free through our professional 5-step course designed to track the truth and engineer logic."</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-          <Card onClick={() => setSelectedCategory('literacy')} className={`p-8 text-center cursor-pointer transition-all ${selectedCategory === 'literacy' ? 'border-4 border-indigo-600 shadow-xl' : 'hover:shadow-lg'}`}>
-            <div className="text-4xl mb-4">🔎</div>
-            <h3 className="font-bold text-lg mb-2">Information Literacy</h3>
-            <p className="text-sm text-gray-500">Evaluate the credibility and bias of your sources.</p>
+        <div className="text-center mb-6 md:mb-8">
+          <p className="text-base md:text-lg text-gray-700 font-medium">Select one training path to begin</p>
+          <p className="text-xs md:text-sm text-gray-500 mt-2">Choose the skill you want to focus on</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-12 md:mb-16">
+          <Card onClick={() => setSelectedCategory('literacy')} className={`p-6 md:p-8 text-center cursor-pointer transition-all ${selectedCategory === 'literacy' ? 'border-4 border-indigo-600 shadow-xl' : 'hover:shadow-lg'}`}>
+            <div className="text-3xl md:text-4xl mb-3 md:mb-4">🔎</div>
+            <h3 className="font-bold text-base md:text-lg mb-2">Information Literacy</h3>
+            <p className="text-xs md:text-sm text-gray-500">Evaluate the credibility and bias of your sources.</p>
           </Card>
-          <Card onClick={() => setSelectedCategory('critical')} className={`p-8 text-center cursor-pointer transition-all ${selectedCategory === 'critical' ? 'border-4 border-indigo-600 shadow-xl' : 'hover:shadow-lg'}`}>
-            <div className="text-4xl mb-4">⚖️</div>
-            <h3 className="font-bold text-lg mb-2">Critical Thinking</h3>
-            <p className="text-sm text-gray-500">Organize support and counter-arguments strategically.</p>
+          <Card onClick={() => setSelectedCategory('critical')} className={`p-6 md:p-8 text-center cursor-pointer transition-all ${selectedCategory === 'critical' ? 'border-4 border-indigo-600 shadow-xl' : 'hover:shadow-lg'}`}>
+            <div className="text-3xl md:text-4xl mb-3 md:mb-4">⚖️</div>
+            <h3 className="font-bold text-base md:text-lg mb-2">Critical Thinking</h3>
+            <p className="text-xs md:text-sm text-gray-500">Organize support and counter-arguments strategically.</p>
           </Card>
-          <Card onClick={() => setSelectedCategory('persuasive')} className={`p-8 text-center cursor-pointer transition-all ${selectedCategory === 'persuasive' ? 'border-4 border-indigo-600 shadow-xl' : 'hover:shadow-lg'}`}>
-            <div className="text-4xl mb-4">✍️</div>
-            <h3 className="font-bold text-lg mb-2">Persuasive Writing</h3>
-            <p className="text-sm text-gray-500">Write sophisticated essays with evidence-based reasoning.</p>
+          <Card onClick={() => setSelectedCategory('persuasive')} className={`p-6 md:p-8 text-center cursor-pointer transition-all ${selectedCategory === 'persuasive' ? 'border-4 border-indigo-600 shadow-xl' : 'hover:shadow-lg'}`}>
+            <div className="text-3xl md:text-4xl mb-3 md:mb-4">✍️</div>
+            <h3 className="font-bold text-base md:text-lg mb-2">Persuasive Writing</h3>
+            <p className="text-xs md:text-sm text-gray-500">Write sophisticated essays with evidence-based reasoning.</p>
           </Card>
         </div>
 
-        <div className="mb-16">
-          <h4 className="text-center font-bold text-gray-400 uppercase text-xs tracking-wider mb-10">Training Process Flow</h4>
-          <div className="flex justify-between items-center max-w-4xl mx-auto relative">
-            <div className="absolute top-6 left-0 right-0 h-0.5 bg-gray-200 z-0"></div>
+        <div className="mb-12 md:mb-16">
+          <h4 className="text-center font-bold text-gray-400 uppercase text-xs tracking-wider mb-6 md:mb-10">Training Process Flow</h4>
+          <div className="flex justify-between items-center max-w-4xl mx-auto relative px-2">
+            <div className="absolute top-4 md:top-6 left-0 right-0 h-0.5 bg-gray-200 z-0"></div>
             {[
-              { num: 1, label: 'Topic & Insight' },
-              { num: 2, label: 'Evidence Check' },
-              { num: 3, label: 'Logic Mapping' },
-              { num: 4, label: 'Pro Drafting' },
-              { num: 5, label: 'AI Analysis' }
+              { num: 1, label: 'Topic' },
+              { num: 2, label: 'Evidence' },
+              { num: 3, label: 'Mapping' },
+              { num: 4, label: 'Drafting' },
+              { num: 5, label: 'Analysis' }
             ].map(item => (
-              <div key={item.num} className="flex flex-col items-center gap-3 relative z-10">
-                <div className="w-12 h-12 rounded-full bg-white border-2 border-gray-200 text-gray-400 font-bold text-lg flex items-center justify-center shadow-sm">{item.num}</div>
-                <span className="text-xs font-bold text-gray-400 uppercase whitespace-nowrap">{item.label}</span>
+              <div key={item.num} className="flex flex-col items-center gap-2 md:gap-3 relative z-10">
+                <div className="w-8 h-8 md:w-12 md:h-12 rounded-full bg-white border-2 border-gray-200 text-gray-400 font-bold text-sm md:text-lg flex items-center justify-center shadow-sm">{item.num}</div>
+                <span className="text-[9px] md:text-xs font-bold text-gray-400 uppercase whitespace-nowrap text-center">{item.label}</span>
               </div>
             ))}
           </div>
         </div>
 
         <div className="flex justify-center">
-          <Button onClick={() => { if(selectedCategory) generateTopics(selectedCategory); }} disabled={!selectedCategory || loading} className="px-16 py-6 text-xl">
+          <Button onClick={() => { if(selectedCategory) generateTopics(selectedCategory); }} disabled={!selectedCategory || loading} className="px-8 py-4 md:px-16 md:py-6 text-base md:text-xl">
             {loading ? (
-              <div className="flex items-center gap-3">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                Generating Topics...
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="animate-spin rounded-full h-4 w-4 md:h-5 md:w-5 border-b-2 border-white"></div>
+                <span className="text-sm md:text-base">Generating Topics...</span>
               </div>
             ) : 'Start Training Path →'}
           </Button>
         </div>
         
-        {!selectedCategory && <div className="text-center text-gray-500 text-sm">👆 Select a category above to begin</div>}
+        {!selectedCategory && <div className="text-center text-gray-500 text-xs md:text-sm">👆 Select a category above to begin</div>}
       </div>
     );
   }
@@ -3581,41 +3588,41 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
     if (loading || topics.length === 0) {
       return (
         <div className="text-center py-20">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">AI가 팩트체크 주제를 생성 중입니다...</p>
+          <div className="animate-spin rounded-full h-12 w-12 md:h-16 md:w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-sm md:text-base text-gray-600 px-4">AI가 팩트체크 주제를 생성 중입니다...</p>
         </div>
       );
     }
 
     return (
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setStep(0)} className="text-gray-500 hover:text-indigo-600">← Back</button>
-            <h2 className="text-3xl font-bold">Step 1: Pick a Debatable Topic</h2>
+      <div className="max-w-7xl mx-auto space-y-4 md:space-y-6 px-4">
+        <div className="flex items-center justify-between mb-4 md:mb-6 flex-wrap gap-2">
+          <div className="flex items-center gap-2 md:gap-3">
+            <button onClick={() => setStep(0)} className="text-sm md:text-base text-gray-500 hover:text-indigo-600">← Back</button>
+            <h2 className="text-xl md:text-3xl font-bold">Step 1: Pick a Debatable Topic</h2>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
           {topics.map((topic, idx) => (
-            <Card key={idx} onClick={() => setSelectedTopic(idx)} className={`p-6 cursor-pointer transition-all ${selectedTopic === idx ? 'border-4 border-indigo-600 bg-indigo-50' : 'hover:shadow-lg'}`}>
-              <h4 className="text-lg font-bold mb-3">{topic.title}</h4>
-              <p className="text-sm text-gray-500">{topic.question}</p>
+            <Card key={idx} onClick={() => setSelectedTopic(idx)} className={`p-4 md:p-6 cursor-pointer transition-all ${selectedTopic === idx ? 'border-4 border-indigo-600 bg-indigo-50' : 'hover:shadow-lg'}`}>
+              <h4 className="text-base md:text-lg font-bold mb-2 md:mb-3">{topic.title}</h4>
+              <p className="text-xs md:text-sm text-gray-500">{topic.question}</p>
             </Card>
           ))}
         </div>
 
-        <Card className="p-8 bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-200">
-          <h3 className="text-xl font-bold mb-2">Fact-Check Insight</h3>
-          <p className="text-sm text-gray-600 mb-4">Select a topic and click the button to see the core conflict.</p>
+        <Card className="p-4 md:p-8 bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-200">
+          <h3 className="text-lg md:text-xl font-bold mb-2">Fact-Check Insight</h3>
+          <p className="text-xs md:text-sm text-gray-600 mb-3 md:mb-4">Select a topic and click the button to see the core conflict.</p>
           
-          <Button onClick={() => setInsightChecked(true)} disabled={selectedTopic === null || insightChecked} className="bg-indigo-600">
+          <Button onClick={() => setInsightChecked(true)} disabled={selectedTopic === null || insightChecked} className="bg-indigo-600 text-sm md:text-base">
             {insightChecked ? '✓ Checked' : '✨ Get Fact-Check Insight'}
           </Button>
         </Card>
 
-        <div className="flex justify-center pt-8">
-          <Button onClick={() => setStep(2)} disabled={!insightChecked} className="px-12 py-4 text-lg">
+        <div className="flex justify-center pt-6 md:pt-8">
+          <Button onClick={() => setStep(2)} disabled={!insightChecked} className="px-8 py-3 md:px-12 md:py-4 text-base md:text-lg">
             Go to Next Step →
           </Button>
         </div>
@@ -3626,29 +3633,29 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
   // Step 2: Evidence Locker
   if (step === 2) {
     return (
-      <div className="max-w-6xl mx-auto space-y-6">
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => setStep(1)} className="text-gray-500 hover:text-indigo-600">← Back</button>
-          <span className="bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-full">Step 2</span>
-          <h2 className="text-2xl font-bold">Evidence Locker</h2>
+      <div className="max-w-6xl mx-auto space-y-4 md:space-y-6 px-4">
+        <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6 flex-wrap">
+          <button onClick={() => setStep(1)} className="text-sm md:text-base text-gray-500 hover:text-indigo-600">← Back</button>
+          <span className="bg-indigo-600 text-white text-xs font-bold px-2 md:px-3 py-1 rounded-full">Step 2</span>
+          <h2 className="text-xl md:text-2xl font-bold">Evidence Locker</h2>
         </div>
 
-        <div className="text-sm text-blue-700 bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+        <div className="text-xs md:text-sm text-blue-700 bg-blue-50 border-l-4 border-blue-400 p-3 md:p-4 mb-4 md:mb-6">
           💡 Why find a counter-fact? Identifying opposing views allows you to directly address and refute them. This creates a much stronger, sophisticated, and more convincing logical structure for your essay.
         </div>
 
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+        <div className="bg-red-50 border-l-4 border-red-400 p-3 md:p-4 mb-4 md:mb-6 text-xs md:text-sm">
           ⚠️ Minimum 2 evidences required (1 Support, 1 Counter fact).
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4 md:space-y-6">
           {evidences.map((ev, idx) => (
-            <Card key={idx} className="p-6 relative">
-              <div className="flex items-center justify-between mb-4">
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${ev.type === 'support' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+            <Card key={idx} className="p-4 md:p-6 relative">
+              <div className="flex items-center justify-between mb-3 md:mb-4 flex-wrap gap-2">
+                <span className={`px-2 md:px-3 py-1 rounded-full text-xs font-bold ${ev.type === 'support' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                   {ev.type === 'support' ? '✓ 지지 (Support)' : '⚠️ 반론 (Counter)'}
                 </span>
-                <Button onClick={() => handleSelfCheck(idx)} disabled={!ev.text} className="bg-indigo-600 text-sm px-4 py-2">
+                <Button onClick={() => handleSelfCheck(idx)} disabled={!ev.text} className="bg-indigo-600 text-xs md:text-sm px-3 md:px-4 py-1.5 md:py-2">
                   SELF-CHECK
                 </Button>
               </div>
@@ -3660,7 +3667,7 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
                   setEvidences(updated);
                 }} 
                 placeholder="Summarize your evidence (Support or Counter)..." 
-                className="w-full border rounded p-3 mb-3 text-sm" 
+                className="w-full border rounded p-2 md:p-3 mb-2 md:mb-3 text-xs md:text-sm" 
                 rows="3" 
               />
               <input 
@@ -3672,14 +3679,14 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
                   setEvidences(updated);
                 }} 
                 placeholder="Source URL" 
-                className="w-full border rounded p-2 mb-3 text-sm" 
+                className="w-full border rounded p-2 mb-2 md:mb-3 text-xs md:text-sm" 
               />
               {ev.feedback && (
-                <div className="bg-blue-50 border-l-4 border-blue-400 p-3 text-sm mb-3 whitespace-pre-line">
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-2 md:p-3 text-xs md:text-sm mb-2 md:mb-3 whitespace-pre-line">
                   {ev.feedback}
                 </div>
               )}
-              <div className="flex gap-2 text-xs text-gray-500">
+              <div className="flex gap-2 text-[10px] md:text-xs text-gray-500 flex-wrap">
                 <a href="https://scholar.google.com/" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600 cursor-pointer">🔗 Google Scholar</a>
                 <a href="https://arxiv.org/" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600 cursor-pointer">🔗 arXiv</a>
                 <a href="https://eric.ed.gov/" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600 cursor-pointer">🔗 ERIC</a>
@@ -3691,66 +3698,66 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
           <div className="flex justify-center">
             <button 
               onClick={() => setEvidences([...evidences, { type: evidences.length % 2 === 0 ? 'support' : 'counter', text: '', source: '', feedback: null }])} 
-              className="border-2 border-dashed border-indigo-600 bg-white text-indigo-600 hover:bg-indigo-50 px-8 py-3 rounded-lg font-medium transition-all"
+              className="border-2 border-dashed border-indigo-600 bg-white text-indigo-600 hover:bg-indigo-50 px-6 py-2.5 md:px-8 md:py-3 rounded-lg font-medium transition-all text-sm md:text-base"
             >
               + Add Evidence
             </button>
           </div>
         </div>
 
-        <div className="flex justify-center pt-8">
-          <Button onClick={() => setStep(3)} disabled={evidences.length < 2} className="px-12 py-4 text-lg">Next Step →</Button>
+        <div className="flex justify-center pt-6 md:pt-8">
+          <Button onClick={() => setStep(3)} disabled={evidences.length < 2} className="px-8 py-3 md:px-12 md:py-4 text-base md:text-lg">Next Step →</Button>
         </div>
 
         {showValidatorModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowValidatorModal(false)}>
-            <div className="bg-white rounded-2xl max-w-2xl w-full mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-indigo-600 text-white p-6">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowValidatorModal(false)}>
+            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-indigo-600 text-white p-4 md:p-6">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl">🌐</span>
-                    <h3 className="text-2xl font-bold">Source Validator</h3>
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <span className="text-2xl md:text-3xl">🌐</span>
+                    <h3 className="text-xl md:text-2xl font-bold">Source Validator</h3>
                   </div>
                   <button onClick={() => setShowValidatorModal(false)} className="text-white text-2xl hover:text-gray-200">×</button>
                 </div>
-                <p className="text-sm mt-2 opacity-90">AI가 아닌, 에디터의 논으로 직접 심사하세요.</p>
+                <p className="text-xs md:text-sm mt-2 opacity-90">AI가 아닌, 에디터의 논으로 직접 심사하세요.</p>
               </div>
 
-              <div className="p-6">
-                <div className="bg-blue-50 border-l-4 border-blue-400 p-3 mb-6 text-sm text-blue-800">
+              <div className="p-3 md:p-6">
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-2 mb-3 text-xs md:text-sm text-blue-800">
                   💡 각 항목의 [?] 아이콘을 눌러 추천 사이트를 확인하세요!
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-3 md:space-y-4">
                   {[
                     { key: 'authority', label: '전문성 (Authority)', desc: '누가 썼나요?' },
                     { key: 'currency', label: '최신성 (Currency)', desc: '언제 썼나요?' },
                     { key: 'accuracy', label: '정확성 (Accuracy)', desc: '교차 검증 되었나요?' },
                     { key: 'objectivity', label: '객관성 (Objectivity)', desc: '중립적인가요?' }
                   ].map(item => (
-                    <div key={item.key} className="border rounded-lg p-4">
+                    <div key={item.key} className="border rounded-lg p-3 md:p-4">
                       <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 md:gap-3">
                           <input 
                             type="checkbox" 
                             checked={validatorChecks[item.key]}
                             onChange={(e) => setValidatorChecks({...validatorChecks, [item.key]: e.target.checked})}
-                            className="w-5 h-5"
+                            className="w-4 h-4 md:w-5 md:h-5"
                           />
                           <div>
-                            <div className="font-bold">{item.label}</div>
+                            <div className="font-bold text-sm md:text-base">{item.label}</div>
                             <div className="text-xs text-gray-500">{item.desc}</div>
                           </div>
                         </div>
                         <button 
                           onClick={() => setShowTooltip(showTooltip === item.key ? null : item.key)}
-                          className="text-red-500 text-xl hover:text-red-700"
+                          className="text-red-500 text-lg md:text-xl hover:text-red-700"
                         >
                           ?
                         </button>
                       </div>
                       {showTooltip === item.key && (
-                        <div className="mt-2 p-3 bg-gray-50 rounded text-sm text-gray-700">
+                        <div className="mt-2 p-2 md:p-3 bg-gray-50 rounded text-xs md:text-sm text-gray-700">
                           {tooltips[item.key]}
                         </div>
                       )}
@@ -3760,7 +3767,7 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
                           value={validatorInputs[item.key]}
                           onChange={(e) => setValidatorInputs({...validatorInputs, [item.key]: e.target.value})}
                           placeholder="선택사항: 메모를 입력하세요..."
-                          className="w-full border rounded p-2 mt-2 text-sm"
+                          className="w-full border rounded p-2 mt-2 text-xs md:text-sm"
                         />
                       )}
                     </div>
@@ -3769,7 +3776,7 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
 
                 <button 
                   onClick={submitValidation}
-                  className="w-full bg-slate-900 text-white py-4 rounded-lg font-bold text-lg mt-6 hover:bg-slate-800 transition-all"
+                  className="w-full bg-slate-900 text-white py-3 md:py-4 rounded-lg font-bold text-sm md:text-lg mt-4 md:mt-6 hover:bg-slate-800 transition-all"
                 >
                   진단 결과 적용
                 </button>
@@ -3784,29 +3791,29 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
   // Step 3: Logic Mapping
   if (step === 3) {
     return (
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => setStep(2)} className="text-gray-500 hover:text-indigo-600">← Back</button>
-          <span className="bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-full">Step 3</span>
-          <h2 className="text-2xl font-bold">논리 배치</h2>
+      <div className="max-w-7xl mx-auto space-y-4 md:space-y-6 px-4">
+        <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6 flex-wrap">
+          <button onClick={() => setStep(2)} className="text-sm md:text-base text-gray-500 hover:text-indigo-600">← Back</button>
+          <span className="bg-indigo-600 text-white text-xs font-bold px-2 md:px-3 py-1 rounded-full">Step 3</span>
+          <h2 className="text-xl md:text-2xl font-bold">논리 배치</h2>
         </div>
 
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+        <div className="bg-red-50 border-l-4 border-red-400 p-3 md:p-4 mb-4 md:mb-6 text-xs md:text-sm">
           ⚠️ 균형 잡힌 시각을 위해 지지(Support)와 반론(Counter) 팩트를 각각 1개 이상 배치하세요.
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           <div>
-            <h3 className="text-sm font-bold text-gray-500 mb-3">검증된 팩트 보관함</h3>
-            <div className="space-y-3">
+            <h3 className="text-xs md:text-sm font-bold text-gray-500 mb-2 md:mb-3">검증된 팩트 보관함</h3>
+            <div className="space-y-2 md:space-y-3">
               {evidences.map((ev, idx) => (
-                <Card key={idx} className="p-4 cursor-move hover:shadow-lg transition-all">
+                <Card key={idx} className="p-3 md:p-4 cursor-move hover:shadow-lg transition-all">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1">
-                      <div className="text-sm font-bold mb-1">"{ev.text.substring(0, 50)}..."</div>
-                      <div className="flex gap-2 mt-2">
-                        <Button onClick={() => setSupportArgs([...supportArgs, ev])} className="text-xs py-1 px-2 bg-green-600 text-white hover:bg-green-700">지지 (Support)</Button>
-                        <Button onClick={() => setCounterArgs([...counterArgs, ev])} className="text-xs py-1 px-2 bg-red-600 text-white hover:bg-red-700">반론 (Counter)</Button>
+                      <div className="text-xs md:text-sm font-bold mb-1">"{ev.text.substring(0, 50)}..."</div>
+                      <div className="flex gap-1.5 md:gap-2 mt-2">
+                        <Button onClick={() => setSupportArgs([...supportArgs, ev])} className="text-[10px] md:text-xs py-0.5 md:py-1 px-1.5 md:px-2 bg-green-600 text-white hover:bg-green-700">지지</Button>
+                        <Button onClick={() => setCounterArgs([...counterArgs, ev])} className="text-[10px] md:text-xs py-0.5 md:py-1 px-1.5 md:px-2 bg-red-600 text-white hover:bg-red-700">반론</Button>
                       </div>
                     </div>
                   </div>
@@ -3815,29 +3822,29 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
             </div>
           </div>
 
-          <div className="space-y-6">
-            <Card className="p-6 bg-green-50 border-2 border-green-200">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-green-600 font-bold">✓ SUPPORT ASSET</span>
-                <span className="bg-green-600 text-white px-2 py-0.5 rounded-full text-xs">{supportArgs.length}</span>
+          <div className="space-y-4 md:space-y-6">
+            <Card className="p-4 md:p-6 bg-green-50 border-2 border-green-200">
+              <div className="flex items-center gap-2 mb-3 md:mb-4">
+                <span className="text-sm md:text-base text-green-600 font-bold">✓ SUPPORT ASSET</span>
+                <span className="bg-green-600 text-white px-1.5 md:px-2 py-0.5 rounded-full text-xs">{supportArgs.length}</span>
               </div>
               <div className="space-y-2">
                 {supportArgs.map((arg, idx) => (
-                  <div key={idx} className="bg-white border-2 border-green-300 rounded-lg p-3 text-sm">
+                  <div key={idx} className="bg-white border-2 border-green-300 rounded-lg p-2 md:p-3 text-xs md:text-sm">
                     {arg.text.substring(0, 60)}...
                   </div>
                 ))}
               </div>
             </Card>
 
-            <Card className="p-6 bg-red-50 border-2 border-red-200">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-red-600 font-bold">✗ COUNTER POINT</span>
-                <span className="bg-red-600 text-white px-2 py-0.5 rounded-full text-xs">{counterArgs.length}</span>
+            <Card className="p-4 md:p-6 bg-red-50 border-2 border-red-200">
+              <div className="flex items-center gap-2 mb-3 md:mb-4">
+                <span className="text-sm md:text-base text-red-600 font-bold">✗ COUNTER POINT</span>
+                <span className="bg-red-600 text-white px-1.5 md:px-2 py-0.5 rounded-full text-xs">{counterArgs.length}</span>
               </div>
               <div className="space-y-2">
                 {counterArgs.map((arg, idx) => (
-                  <div key={idx} className="bg-white border-2 border-red-300 rounded-lg p-3 text-sm">
+                  <div key={idx} className="bg-white border-2 border-red-300 rounded-lg p-2 md:p-3 text-xs md:text-sm">
                     {arg.text.substring(0, 60)}...
                   </div>
                 ))}
@@ -3846,8 +3853,8 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
           </div>
         </div>
 
-        <div className="flex justify-center pt-8">
-          <Button onClick={() => setStep(4)} disabled={supportArgs.length === 0 || counterArgs.length === 0} className="px-12 py-4 text-lg bg-indigo-600">배치 완료 (최소 1개씩) →</Button>
+        <div className="flex justify-center pt-6 md:pt-8">
+          <Button onClick={() => setStep(4)} disabled={supportArgs.length === 0 || counterArgs.length === 0} className="px-8 py-3 md:px-12 md:py-4 text-base md:text-lg bg-indigo-600">배치 완료 (최소 1개씩) →</Button>
         </div>
       </div>
     );
@@ -3856,70 +3863,125 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
   // Step 4: Pro Editor Mode
   if (step === 4) {    
     return (
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setStep(3)} className="text-gray-500 hover:text-indigo-600">← Back</button>
-            <span className="bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-full">Step 4</span>
-            <h2 className="text-2xl font-bold">Pro Editor Mode</h2>
+      <div className="max-w-7xl mx-auto space-y-4 md:space-y-6 px-4">
+        <div className="flex items-center justify-between mb-4 md:mb-6 flex-wrap gap-2">
+          <div className="flex items-center gap-2 md:gap-3">
+            <button onClick={() => setStep(3)} className="text-sm md:text-base text-gray-500 hover:text-indigo-600">← Back</button>
+            <span className="bg-indigo-600 text-white text-xs font-bold px-2 md:px-3 py-1 rounded-full">Step 4</span>
+            <h2 className="text-xl md:text-2xl font-bold">Pro Editor Mode</h2>
           </div>
-          <div className="flex gap-2 text-xs">
-            <span className="bg-indigo-600 text-white w-3 h-3 rounded-full"></span>
-            <span className="bg-indigo-600 text-white w-3 h-3 rounded-full"></span>
-            <span className="bg-indigo-600 text-white w-3 h-3 rounded-full"></span>
-            <span className="bg-indigo-600 text-white w-3 h-3 rounded-full"></span>
-            <span className="bg-gray-300 w-3 h-3 rounded-full"></span>
+          <div className="flex gap-1.5 md:gap-2 text-xs">
+            <span className="bg-indigo-600 text-white w-2 h-2 md:w-3 md:h-3 rounded-full"></span>
+            <span className="bg-indigo-600 text-white w-2 h-2 md:w-3 md:h-3 rounded-full"></span>
+            <span className="bg-indigo-600 text-white w-2 h-2 md:w-3 md:h-3 rounded-full"></span>
+            <span className="bg-indigo-600 text-white w-2 h-2 md:w-3 md:h-3 rounded-full"></span>
+            <span className="bg-gray-300 w-2 h-2 md:w-3 md:h-3 rounded-full"></span>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1 space-y-4">
-            <div className="bg-indigo-600 text-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <div className="text-xs font-bold mb-3 text-white uppercase tracking-wider">SUBJECT</div>
-              <h3 className="text-base font-bold mb-3 text-white leading-tight">{topics[selectedTopic].title}</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+          <div className="lg:col-span-1 space-y-3 md:space-y-4">
+            <div className="bg-indigo-600 text-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
+              <div className="text-xs font-bold mb-2 md:mb-3 text-white uppercase tracking-wider">SUBJECT</div>
+              <h3 className="text-sm md:text-base font-bold mb-2 md:mb-3 text-white leading-tight">{topics[selectedTopic].title}</h3>
               <p className="text-xs text-white opacity-90 leading-relaxed">{topics[selectedTopic].question}</p>
             </div>
 
-            <Card className="p-4 bg-red-50 border-2 border-red-200">
+            <Card className="p-3 md:p-4 bg-red-50 border-2 border-red-200">
               <div className="text-xs font-bold text-red-600 mb-2">✗ 반론 & 역주장</div>
               {counterArgs.map((arg, idx) => (
-                <div key={idx} className="bg-white p-2 rounded mb-2 text-xs">"{arg.text.substring(0, 50)}..."</div>
+                <div key={idx} className="bg-white p-1.5 md:p-2 rounded mb-1.5 md:mb-2 text-[10px] md:text-xs">"{arg.text.substring(0, 50)}..."</div>
               ))}
             </Card>
 
-            <Card className="p-4 bg-green-50 border-2 border-green-200">
+            <Card className="p-3 md:p-4 bg-green-50 border-2 border-green-200">
               <div className="text-xs font-bold text-green-600 mb-2">✓ 지지 근거 자료</div>
               {supportArgs.map((arg, idx) => (
-                <div key={idx} className="bg-white p-2 rounded mb-2 text-xs">"{arg.text.substring(0, 50)}..."</div>
+                <div key={idx} className="bg-white p-1.5 md:p-2 rounded mb-1.5 md:mb-2 text-[10px] md:text-xs">"{arg.text.substring(0, 50)}..."</div>
               ))}
             </Card>
           </div>
 
           <div className="lg:col-span-2">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-sm font-bold text-gray-500">DRAFTING MODE</div>
-              <div className="flex gap-2">
-                <Button onClick={generateHooks} disabled={loading} className="text-sm bg-indigo-600 text-white hover:bg-indigo-700">
+            <div className="flex items-center justify-between mb-3 md:mb-4 flex-wrap gap-2">
+              <div className="text-xs md:text-sm font-bold text-gray-500">DRAFTING MODE</div>
+              <div className="flex gap-1.5 md:gap-2">
+                <Button onClick={generateHooks} disabled={loading} className="text-xs md:text-sm bg-indigo-600 text-white hover:bg-indigo-700 px-2 md:px-3 py-1.5 md:py-2">
                   ✨ 서론 아이디어 얻기
                 </Button>
-                <Button onClick={submitEssay} disabled={!essay || loading} className="text-sm bg-indigo-400 text-white hover:bg-indigo-500">
-                  제출 및 분석받기
+                <Button onClick={submitEssay} disabled={!essay || loading} className="text-xs md:text-sm bg-indigo-400 text-white hover:bg-indigo-500 px-2 md:px-3 py-1.5 md:py-2">
+                  제출
                 </Button>
               </div>
             </div>
-            <textarea value={essay} onChange={(e) => setEssay(e.target.value)} placeholder="조사한 팩트들을 연결하여 논리적인 에세이를 작성하세요..." className="w-full border-2 border-gray-300 rounded-lg p-4 text-sm h-96" />
+            <textarea value={essay} onChange={(e) => setEssay(e.target.value)} placeholder="조사한 팩트들을 연결하여 논리적인 에세이를 작성하세요..." className="w-full border-2 border-gray-300 rounded-lg p-3 md:p-4 text-xs md:text-sm h-64 md:h-96" />
           </div>
         </div>
 
         {showHookModal && hooks && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowHookModal(false)}>
-            <Card className="max-w-2xl w-full mx-4 p-8 bg-white" onClick={(e) => e.stopPropagation()}>
-              <div className="text-center mb-6">
-                <div className="text-5xl mb-4">✍️</div>
-                <h3 className="text-2xl font-bold mb-2 text-gray-800">AI HOOK SUGGESTION</h3>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowHookModal(false)}>
+            <Card className="max-w-2xl w-full p-6 md:p-8 bg-white" onClick={(e) => e.stopPropagation()}>
+              <div className="text-center mb-4 md:mb-6">
+                <div className="text-4xl md:text-5xl mb-3 md:mb-4">✍️</div>
+                <div className="flex items-center justify-center gap-3">
+                  <h3 className="text-xl md:text-2xl font-bold text-gray-800">AI HOOK SUGGESTION</h3>
+                  <button 
+                    onClick={async () => {
+                      if (translatingHooks) return;
+                      
+                      if (showHooksEn) {
+                        setShowHooksEn(false);
+                        return;
+                      }
+                      
+                      if (feedback?.hooksEn) {
+                        setShowHooksEn(true);
+                        return;
+                      }
+                      
+                      setTranslatingHooks(true);
+                      try {
+                        const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
+                        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                          body: JSON.stringify({
+                            model: 'gpt-4o-mini',
+                            messages: [{ role: 'user', content: `Translate this Korean text to English:\n\n${hooks}` }],
+                            temperature: 0.3
+                          })
+                        });
+                        const data = await response.json();
+                        setFeedback({...feedback, hooksEn: data.choices[0].message.content});
+                        setShowHooksEn(true);
+                        setTranslatingHooks(false);
+                      } catch (error) {
+                        console.error(error);
+                        alert('Translation failed');
+                        setTranslatingHooks(false);
+                      }
+                    }}
+                    disabled={translatingHooks}
+                    className="text-xs bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 flex items-center gap-1"
+                  >
+                    {translatingHooks ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                        번역 중...
+                      </>
+                    ) : (
+                      showHooksEn ? '한글' : 'English'
+                    )}
+                  </button>
+                </div>
               </div>
-              <div className="bg-gray-100 text-black p-6 rounded-lg mb-6 whitespace-pre-line">{hooks}</div>
-              <Button onClick={() => setShowHookModal(false)} className="w-full bg-indigo-600 text-white hover:bg-indigo-700">에디터로 돌아가기</Button>
+              <div className="bg-gray-100 text-black p-4 md:p-6 rounded-lg mb-4 md:mb-6 whitespace-pre-line text-xs md:text-sm">
+                {showHooksEn ? feedback?.hooksEn : hooks}
+              </div>
+              <Button onClick={() => {
+                setShowHookModal(false);
+                setShowHooksEn(false);
+              }} className="w-full bg-indigo-600 text-white hover:bg-indigo-700 text-sm md:text-base">에디터로 돌아가기</Button>
             </Card>
           </div>
         )}
@@ -3930,27 +3992,27 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
   // Step 5: Better Expression & Feedback
   if (step === 5) {
     return (
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center gap-3 mb-6">
-          <span className="bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-full">Step 5</span>
-          <h2 className="text-2xl font-bold">Better Expression & Feedback</h2>
+      <div className="max-w-7xl mx-auto space-y-4 md:space-y-6 px-4">
+        <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
+          <span className="bg-indigo-600 text-white text-xs font-bold px-2 md:px-3 py-1 rounded-full">Step 5</span>
+          <h2 className="text-xl md:text-2xl font-bold">Better Expression & Feedback</h2>
         </div>
 
-        <div className="text-center mb-8">
-          <div className="text-5xl mb-4">🏆</div>
-          <h3 className="text-3xl font-bold mb-2">훈련 마감! AI 심층 피드백</h3>
-          <p className="text-gray-600">에디터님의 글과 AI 수준 모범 답안을 비교하여 한 단계 더 도약하세요.</p>
+        <div className="text-center mb-6 md:mb-8">
+          <div className="text-4xl md:text-5xl mb-3 md:mb-4">🏆</div>
+          <h3 className="text-2xl md:text-3xl font-bold mb-2">훈련 마감! AI 심층 피드백</h3>
+          <p className="text-sm md:text-base text-gray-600 px-4">에디터님의 글과 AI 수준 모범 답안을 비교하여 한 단계 더 도약하세요.</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-6 mb-8">
-          <Card className="p-6">
-            <div className="text-sm font-bold text-gray-500 mb-4">YOUR ORIGINAL DRAFT</div>
-            <div className="bg-gray-50 p-4 rounded-lg text-sm whitespace-pre-line h-96 overflow-y-auto">{essay}</div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
+          <Card className="p-4 md:p-6">
+            <div className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4">YOUR ORIGINAL DRAFT</div>
+            <div className="bg-gray-50 p-3 md:p-4 rounded-lg text-xs md:text-sm whitespace-pre-line h-64 md:h-96 overflow-y-auto">{essay}</div>
           </Card>
 
-          <Card className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-indigo-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-sm font-bold text-indigo-700">✨ AI PROFESSIONAL REVISION</div>
+          <Card className="p-4 md:p-6 bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-indigo-200">
+            <div className="flex items-center justify-between mb-3 md:mb-4 flex-wrap gap-2">
+              <div className="text-xs md:text-sm font-bold text-indigo-700">✨ AI PROFESSIONAL REVISION</div>
               <button 
                 onClick={async () => {
                   if (translatingRevision) return;
@@ -3988,11 +4050,11 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
                   }
                 }}
                 disabled={translatingRevision}
-                className="text-xs bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 flex items-center gap-1"
+                className="text-[10px] md:text-xs bg-indigo-600 text-white px-2 md:px-3 py-1 rounded hover:bg-indigo-700 flex items-center gap-1"
               >
                 {translatingRevision ? (
                   <>
-                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                    <div className="animate-spin rounded-full h-2 w-2 md:h-3 md:w-3 border-b-2 border-white"></div>
                     번역 중...
                   </>
                 ) : (
@@ -4000,17 +4062,17 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
                 )}
               </button>
             </div>
-            <div className="bg-white p-4 rounded-lg text-sm whitespace-pre-line h-96 overflow-y-auto">
+            <div className="bg-white p-3 md:p-4 rounded-lg text-xs md:text-sm whitespace-pre-line h-64 md:h-96 overflow-y-auto">
               {showRevisionEn ? feedback?.revisionEn : feedback?.revision}
             </div>
           </Card>
         </div>
 
-        <Card className="p-8 bg-gradient-to-r from-slate-800 to-slate-900 text-white">
-          <div className="flex items-center justify-between mb-6">
+        <Card className="p-4 md:p-8 bg-gradient-to-r from-slate-800 to-slate-900 text-white">
+          <div className="flex items-center justify-between mb-4 md:mb-6 flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <span className="text-2xl">🧠</span>
-              <h3 className="text-xl font-bold">심층 논리 가이드 (AI Learning Points)</h3>
+              <span className="text-xl md:text-2xl">🧠</span>
+              <h3 className="text-base md:text-xl font-bold">심층 논리 가이드 (AI Learning Points)</h3>
             </div>
             <button 
               onClick={async () => {
@@ -4058,11 +4120,11 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
                 }
               }}
               disabled={translatingPoints}
-              className="text-xs bg-white text-slate-900 px-3 py-1 rounded hover:bg-gray-200 flex items-center gap-1"
+              className="text-[10px] md:text-xs bg-white text-slate-900 px-2 md:px-3 py-1 rounded hover:bg-gray-200 flex items-center gap-1"
             >
               {translatingPoints ? (
                 <>
-                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-slate-900"></div>
+                  <div className="animate-spin rounded-full h-2 w-2 md:h-3 md:w-3 border-b-2 border-slate-900"></div>
                   번역 중...
                 </>
               ) : (
@@ -4070,17 +4132,17 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
               )}
             </button>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
             {(showPointsEn ? feedback?.learningPointsEn : feedback?.learningPoints)?.map((point, idx) => (
-              <div key={idx} className="p-4 bg-slate-700 rounded-xl border border-slate-600">
+              <div key={idx} className="p-3 md:p-4 bg-slate-700 rounded-xl border border-slate-600">
                 <div className="text-xs font-bold text-indigo-300 mb-2">{point.title}</div>
-                <p className="text-xs leading-relaxed text-white">{point.content}</p>
+                <p className="text-[10px] md:text-xs leading-relaxed text-white">{point.content}</p>
               </div>
             ))}
           </div>
         </Card>
 
-        <div className="flex justify-center pt-8">
+        <div className="flex justify-center pt-6 md:pt-8">
           <Button onClick={() => {
             setStep(0);
             setTopics([]);
@@ -4093,7 +4155,7 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
             setEssay('');
             setHooks(null);
             setFeedback(null);
-          }} className="px-12 py-4 text-lg bg-indigo-600">
+          }} className="px-8 py-3 md:px-12 md:py-4 text-base md:text-lg bg-indigo-600">
             새로운 훈련 시작하기
           </Button>
         </div>
