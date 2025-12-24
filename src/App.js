@@ -3278,6 +3278,10 @@ const FactCheckModule = ({ logActivity, updateActivity, user }) => {
     objectivity: ''
   });
   const [showTooltip, setShowTooltip] = useState(null);
+  const [translatingRevision, setTranslatingRevision] = useState(false);
+  const [translatingPoints, setTranslatingPoints] = useState(false);
+  const [showRevisionEn, setShowRevisionEn] = useState(false);
+  const [showPointsEn, setShowPointsEn] = useState(false);
 
   const tooltips = {
     authority: "신뢰할 수 있는 출처인가요? (예: 학술지, 정부 기관, 전문가)",
@@ -3291,6 +3295,16 @@ const FactCheckModule = ({ logActivity, updateActivity, user }) => {
     setLoading(true);
     try {
       const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
+      
+      // Supabase에서 최근 50개 주제 가져오기
+      const { data: recentTopics } = await supabase
+        .from('generated_topics')
+        .select('topic')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      
+      const recentTopicsList = recentTopics?.map(t => t.topic) || [];
       
       let categoryPrompt = '';
       if (category === 'literacy') {
@@ -3309,11 +3323,24 @@ const FactCheckModule = ({ logActivity, updateActivity, user }) => {
         },
         body: JSON.stringify({
           model: 'gpt-4o-mini',
-          messages: [{
-            role: 'user',
-            content: `Generate 3 UNIQUE and CONTROVERSIAL debate topics suitable for international school students (Grades 9-12).
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a creative debate topic generator. Generate COMPLETELY DIFFERENT and FRESH topics each time. Actively avoid overused topics like: AI ethics, social media effects, cashless society, digital privacy, climate change basics. Think outside the box and explore underrepresented debate areas.'
+            },
+            {
+              role: 'user',
+              content: `Generate 3 UNIQUE and CONTROVERSIAL debate topics suitable for international school students (Grades 9-12).
 
 ${categoryPrompt}
+
+STRICT REQUIREMENTS:
+- NO topics about: AI in daily life, social media & mental health, cashless payments, data privacy, basic environmental issues
+- EXPLORE: bioethics, space policy, economic systems, cultural preservation, education reform, scientific ethics, geopolitics, technological philosophy beyond AI
+- Each topic must be DISTINCT from common high school debate topics
+
+CRITICAL: AVOID these recently generated topics:
+${recentTopicsList.length > 0 ? recentTopicsList.join('\n') : 'None'}
 
 Each topic should:
 - Be debatable with clear pro/con arguments
@@ -3337,6 +3364,16 @@ Return ONLY a JSON array with this format:
       const content = data.choices[0].message.content;
       const jsonMatch = content.match(/\[[\s\S]*\]/);
       const topicsData = JSON.parse(jsonMatch[0]);
+      
+      // Supabase에 생성된 주제 저장
+      const topicsToInsert = topicsData.map(topic => ({
+        user_id: user.id,
+        topic: topic.title
+      }));
+      
+      await supabase
+        .from('generated_topics')
+        .insert(topicsToInsert);
       
       setTopics(topicsData);
       setLoading(false);
@@ -3912,18 +3949,129 @@ ${validatorChecks.objectivity ? `- 객관성: ${validatorInputs.objectivity || '
           </Card>
 
           <Card className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-indigo-200">
-            <div className="text-sm font-bold text-indigo-700 mb-4">✨ AI PROFESSIONAL REVISION</div>
-            <div className="bg-white p-4 rounded-lg text-sm whitespace-pre-line h-96 overflow-y-auto">{feedback?.revision}</div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-sm font-bold text-indigo-700">✨ AI PROFESSIONAL REVISION</div>
+              <button 
+                onClick={async () => {
+                  if (translatingRevision) return;
+                  
+                  if (showRevisionEn) {
+                    setShowRevisionEn(false);
+                    return;
+                  }
+                  
+                  if (feedback?.revisionEn) {
+                    setShowRevisionEn(true);
+                    return;
+                  }
+                  
+                  setTranslatingRevision(true);
+                  try {
+                    const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
+                    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                      body: JSON.stringify({
+                        model: 'gpt-4o-mini',
+                        messages: [{ role: 'user', content: `Translate this Korean text to English:\n\n${feedback?.revision}` }],
+                        temperature: 0.3
+                      })
+                    });
+                    const data = await response.json();
+                    setFeedback({...feedback, revisionEn: data.choices[0].message.content});
+                    setShowRevisionEn(true);
+                    setTranslatingRevision(false);
+                  } catch (error) {
+                    console.error(error);
+                    alert('Translation failed');
+                    setTranslatingRevision(false);
+                  }
+                }}
+                disabled={translatingRevision}
+                className="text-xs bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 flex items-center gap-1"
+              >
+                {translatingRevision ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                    번역 중...
+                  </>
+                ) : (
+                  showRevisionEn ? '한글' : 'English'
+                )}
+              </button>
+            </div>
+            <div className="bg-white p-4 rounded-lg text-sm whitespace-pre-line h-96 overflow-y-auto">
+              {showRevisionEn ? feedback?.revisionEn : feedback?.revision}
+            </div>
           </Card>
         </div>
 
         <Card className="p-8 bg-gradient-to-r from-slate-800 to-slate-900 text-white">
-          <div className="flex items-center gap-2 mb-6">
-            <span className="text-2xl">🧠</span>
-            <h3 className="text-xl font-bold">심층 논리 가이드 (AI Learning Points)</h3>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">🧠</span>
+              <h3 className="text-xl font-bold">심층 논리 가이드 (AI Learning Points)</h3>
+            </div>
+            <button 
+              onClick={async () => {
+                if (translatingPoints) return;
+                
+                if (showPointsEn) {
+                  setShowPointsEn(false);
+                  return;
+                }
+                
+                if (feedback?.learningPointsEn) {
+                  setShowPointsEn(true);
+                  return;
+                }
+                
+                setTranslatingPoints(true);
+                try {
+                  const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
+                  const pointsText = feedback?.learningPoints?.map(p => `${p.title}: ${p.content}`).join('\n\n');
+                  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                    body: JSON.stringify({
+                      model: 'gpt-4o-mini',
+                      messages: [{ role: 'user', content: `Translate this Korean text to English:\n\n${pointsText}` }],
+                      temperature: 0.3
+                    })
+                  });
+                  const data = await response.json();
+                  const translated = data.choices[0].message.content;
+                  const parts = translated.split('\n\n');
+                  setFeedback({
+                    ...feedback, 
+                    learningPointsEn: parts.map((p, idx) => ({
+                      title: p.split(':')[0].trim(),
+                      content: p.split(':').slice(1).join(':').trim()
+                    }))
+                  });
+                  setShowPointsEn(true);
+                  setTranslatingPoints(false);
+                } catch (error) {
+                  console.error(error);
+                  alert('Translation failed');
+                  setTranslatingPoints(false);
+                }
+              }}
+              disabled={translatingPoints}
+              className="text-xs bg-white text-slate-900 px-3 py-1 rounded hover:bg-gray-200 flex items-center gap-1"
+            >
+              {translatingPoints ? (
+                <>
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-slate-900"></div>
+                  번역 중...
+                </>
+              ) : (
+                showPointsEn ? '한글' : 'English'
+              )}
+            </button>
           </div>
           <div className="grid grid-cols-3 gap-4">
-            {feedback?.learningPoints?.map((point, idx) => (
+            {(showPointsEn ? feedback?.learningPointsEn : feedback?.learningPoints)?.map((point, idx) => (
               <div key={idx} className="p-4 bg-slate-700 rounded-xl border border-slate-600">
                 <div className="text-xs font-bold text-indigo-300 mb-2">{point.title}</div>
                 <p className="text-xs leading-relaxed text-white">{point.content}</p>
